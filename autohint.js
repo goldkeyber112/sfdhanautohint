@@ -58,223 +58,9 @@ Contour.prototype.includes = function(that){
 	}
 	return true;
 }
-
-function tx(x){ return x * 0.75 }
-function ty(y){ return (0.95 * upm - y) * 0.75 }
-
-function drawOutline(hDC, contours, xselector, yselector, controlcolor, strokecolor, vertexcolor, touchcolor) {
-	var nPoints = 0;
-	// Untouched
-	for(var j = 0; j < contours.length; j++){
-		var contour = contours[j];
-		// Layer 1 : Control outline
-		hDC.strokeStyle = controlcolor;
-		hDC.beginPath();
-		hDC.moveTo(tx(contour.points[0][xselector]), ty(contour.points[0][yselector]))
-		for(var k = 1; k < contour.points.length; k++){
-			hDC.lineTo(tx(contour.points[k][xselector]), ty(contour.points[k][yselector]))
-		}
-		hDC.closePath();
-		hDC.stroke()
-		// Layer 2 : Character outline
-		hDC.strokeStyle = strokecolor;
-		hDC.beginPath();
-		hDC.moveTo(tx(contour.points[0][xselector]), ty(contour.points[0][yselector]))
-		for(var k = 1; k < contour.points.length; k++){
-			if(contour.points[k].on) hDC.lineTo(tx(contour.points[k][xselector]), ty(contour.points[k][yselector]))
-			else {
-				hDC.quadraticCurveTo(
-					tx(contour.points[k][xselector]), 
-					ty(contour.points[k][yselector]), 
-					tx(contour.points[k + 1][xselector]), 
-					ty(contour.points[k + 1][yselector]))
-				k += 1;
-			}
-		}
-		hDC.closePath();
-		hDC.stroke()
-		hDC.font = "10px 'Sayo UV DL'"
-		for(var k = 0; k < contour.points.length - 1; k++){
-			var point = contour.points[k]
-			if(!contour.points[k].interpolated) {
-				hDC.strokeStyle = hDC.fillStyle = point.touched ? touchcolor || vertexcolor : vertexcolor
-				hDC.fillText('' + (nPoints++), tx(point[xselector]), ty(point[yselector] + 1))
-				if(point.on) {
-					hDC.beginPath()
-					hDC.arc(tx(point[xselector]), ty(point[yselector]), 2, 0, Math.PI*2);
-					hDC.fill()
-				} else {
-					hDC.beginPath()
-					hDC.moveTo(tx(point[xselector] - 3), ty(point[yselector] - 3))
-					hDC.lineTo(tx(point[xselector] + 3), ty(point[yselector] + 3))
-					hDC.stroke()
-					hDC.beginPath()
-					hDC.moveTo(tx(point[xselector] - 3), ty(point[yselector] + 3))
-					hDC.lineTo(tx(point[xselector] + 3), ty(point[yselector] - 3))
-					hDC.stroke()
-				}
-			}
-		}
-	}
-}
-
-function drawContours(hDC, contours){
-	// Fill
-	hDC.fillStyle = 'rgba(0, 0, 0, 0.1)'
-	hDC.beginPath();
-	for(var j = 0; j < contours.length; j++){
-		var contour = contours[j];
-		// Layer 1 : Control outline
-		hDC.moveTo(tx(contour.points[0].xtouch), ty(contour.points[0].ytouch))
-		for(var k = 1; k < contour.points.length; k++){
-			if(contour.points[k].on) hDC.lineTo(tx(contour.points[k].xtouch), ty(contour.points[k].ytouch))
-			else {
-				hDC.quadraticCurveTo(tx(contour.points[k].xtouch), ty(contour.points[k].ytouch), tx(contour.points[k + 1].xtouch), ty(contour.points[k + 1].ytouch))
-				k += 1;
-			}
-		}
-		hDC.closePath();
-	}
-	hDC.fill('nonzero');
-
-	// Outlines
-	drawOutline(hDC, contours, 'xori', 'yori', 'rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.3)', '#aaa')
-	drawOutline(hDC, contours, 'xtouch', 'ytouch', 'rgba(0, 0, 255, 0.3)', 'black', 'green', 'red')
-}
-function drawArrowhead(hDC, x, y, angle, color){
-	hDC.save();
-	hDC.translate(x, y);
-	hDC.rotate(angle);
-	hDC.fillStyle = color;
-	hDC.beginPath();
-	hDC.moveTo(0, 0);
-	hDC.lineTo(-12, 6);
-	hDC.lineTo(-12, -6);
-	hDC.fill();
-	hDC.restore();
-}
-function drawLabel(hDC, x, y, text, color){
-	var textMetric = hDC.measureText(text);
-	hDC.fillStyle = "white";
-	hDC.strokeStyle = color;
-	hDC.fillRect(x - textMetric.width / 2 - 4, y - 8, textMetric.width + 8, 16);
-	hDC.strokeRect(x - textMetric.width / 2 - 4, y - 8, textMetric.width + 8, 16);
-	hDC.fillStyle = color;
-	hDC.fillText(text, x - textMetric.width / 2, y + 5)
-}
-function drawInstructions(hDC, instrs){
-	instrs = instrs.blueZoneAlignments.concat(instrs.roundings, instrs.stemTopAlignments, instrs.stemBottomAlignments, instrs.interpolations, instrs.instemAlignments)
-	var roundColor = "blue";
-	var ipColor = "green";
-	var alignColor = "black";
-	var labels = [];
-	for(var j = 0; j < instrs.length; j++) {
-		var instr = instrs[j];
-		switch(instr[0]) {
-			case "ROUNDUP": case "ROUNDDOWN": case "ROUNDUP2": {
-				var p = instr[1], align = instr[2];
-				var direction = (instr[0] === "ROUNDDOWN" ? -1 : 1);
-				hDC.fillStyle = "white";
-				hDC.strokeStyle = roundColor;
-				hDC.beginPath();
-				hDC.moveTo(tx(p.xtouch), ty(p.ytouch));
-				hDC.lineTo(tx(p.xtouch) - 6, ty(p.ytouch) + direction * 12);
-				hDC.lineTo(tx(p.xtouch) + 6, ty(p.ytouch) + direction * 12);
-				hDC.closePath();
-				hDC.fill();
-				hDC.stroke();
-				if(align) labels.push([hDC, tx(p.xtouch), ty(p.ytouch) + direction * 24, "blue:" + align.toFixed(0), roundColor]);
-				else if(instr[0] === "ROUNDUP2") labels.push([hDC, tx(p.xtouch), ty(p.ytouch) + direction * 24, "SHPIX y:1", roundColor])
-				break;
-			}
-			case "ALIGN0": case "ALIGNW": {
-				var from = instr[1], to = instr[2], width = instr[3];
-				hDC.strokeStyle = alignColor;
-				hDC.beginPath();
-				var mx = (tx(from.xtouch) + tx(to.xtouch)) / 2;
-				var my = (ty(from.ytouch) + ty(to.ytouch)) / 2
-				hDC.moveTo(tx(from.xtouch), ty(from.ytouch));
-				hDC.quadraticCurveTo(mx, my - 20, tx(to.xtouch), ty(to.ytouch))
-				hDC.stroke();
-				var angle = Math.atan((my - 20 - ty(to.ytouch)) / (mx - tx(to.xtouch)));
-				if(angle < 0) angle += Math.PI
-				drawArrowhead(hDC, tx(to.xtouch), ty(to.ytouch), angle, alignColor);
-				if(width) labels.push([hDC, mx, my - 12, "y:" + width.toFixed(0), alignColor])
-				break;
-			}
-			case "IP": {
-				var a = instr[1], b = instr[2], c = instr[3];
-				hDC.strokeStyle = ipColor;
-				hDC.beginPath();
-				hDC.moveTo(tx(a.xtouch), ty(a.ytouch));
-				var mx = (tx(a.xtouch) + tx(c.xtouch)) / 2;
-				var my = (ty(a.ytouch) + ty(c.ytouch)) / 2;
-				hDC.quadraticCurveTo(mx + 20, my, tx(c.xtouch), ty(c.ytouch))
-				var mx = (tx(b.xtouch) + tx(c.xtouch)) / 2;
-				var my = (ty(b.ytouch) + ty(c.ytouch)) / 2;
-				hDC.quadraticCurveTo(mx + 20, my, tx(b.xtouch), ty(b.ytouch))
-				hDC.stroke();
-				labels.push([hDC, tx(c.xtouch), ty(c.ytouch) + 15, "IP", ipColor])
-			}
-		}
-	}
-	for(var j = 0; j < labels.length; j++){
-		drawLabel.apply(null, labels[j])
-	}
-}
-function drawPreview(hDC, contours, ppem, dx, dy, SUPERSAMPLING){
-	function txp(x){ return (x / upm * ppem + dx) * 3 * SUPERSAMPLING}
-	function typ(y){ return ((- y) / upm * ppem + dy) * 3}
-	// Fill
-	hDC.fillStyle = 'black'
-	hDC.beginPath();
-	for(var j = 0; j < contours.length; j++){
-		var contour = contours[j];
-		// Layer 1 : Control outline
-		hDC.moveTo(txp(contour.points[0].xtouch), typ(contour.points[0].ytouch))
-		for(var k = 1; k < contour.points.length; k++){
-			if(contour.points[k].on) hDC.lineTo(txp(contour.points[k].xtouch), typ(contour.points[k].ytouch))
-			else {
-				hDC.quadraticCurveTo(txp(contour.points[k].xtouch), typ(contour.points[k].ytouch), txp(contour.points[k + 1].xtouch), typ(contour.points[k + 1].ytouch))
-				k += 1;
-			}
-		}
-		hDC.closePath();
-	}
-	hDC.fill('nonzero');
-}
-function drawPixelGrid(hDC, ppem){
-	var uppx = upm / ppem
-	// Vertical lines
-	for(var j = 0; j <= ppem; j++){
-		hDC.strokeStyle = '#ddd'
-		hDC.beginPath();
-		hDC.moveTo(tx(j * uppx), ty(upm))
-		hDC.lineTo(tx(j * uppx), ty(-upm))
-		hDC.stroke()
-	}
-	// Horizontal lines
-	for(var j = -ppem; j <= ppem; j++){
-		hDC.strokeStyle = j ? '#ddd' : 'black'
-		hDC.beginPath();
-		hDC.moveTo(tx(0), ty(j * uppx))
-		hDC.lineTo(tx(upm), ty(j * uppx))
-		hDC.stroke()
-	}
-	// Crosses
-	for(var j = -ppem + 0.5; j <= ppem; j++) {
-		for(var k = 0.5; k <= ppem; k++) {
-			hDC.strokeStyle = '#ddd'
-			hDC.beginPath();
-			hDC.moveTo(tx(k * uppx) - 2, ty(j * uppx) - 2)
-			hDC.lineTo(tx(k * uppx) + 2, ty(j * uppx) + 2)
-			hDC.stroke()
-			hDC.beginPath();
-			hDC.moveTo(tx(k * uppx) + 2, ty(j * uppx) - 2)
-			hDC.lineTo(tx(k * uppx) - 2, ty(j * uppx) + 2)
-			hDC.stroke()
-		}
-	}
+function Glyph(contours){
+	this.contours = contours || []
+	this.stems = []
 }
 function parseSFD(input){
 	var contours = [], currentContour = null
@@ -297,8 +83,7 @@ function parseSFD(input){
 	}
 	if(currentContour) contours.push(currentContour);
 	contours.forEach(function(c){ c.stat() })
-	return contours;
-
+	return new Glyph(contours);
 }
 
 function overlapRatio(a, b){
@@ -355,7 +140,7 @@ var MIN_STEM_OVERLAP_RATIO = 0.2;
 var Y_FUZZ = 3
 var SLOPE_FUZZ = 0.02
 
-function findStems(contours, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
+function findStems(glyph, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
 	function statGlyph(contours){
 		var points = []
 		points = points.concat.apply(points, contours.map(function(c){ return c.points }));
@@ -492,14 +277,18 @@ function findStems(contours, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
 		}
 		return stems;
 	}
-	var radicals = findRadicals(contours);
-	var stats = statGlyph(contours);
+	var radicals = findRadicals(glyph.contours);
+	var stats = statGlyph(glyph.contours);
 	findHorizontalSegments(radicals);
 	var stems = stemSegments(radicals);
-	return stems;
+	glyph.stems = stems;
+	return glyph;
 }
 
-function autohint(contours, stems, ppem){
+function autohint(glyph, ppem){
+
+	var contours = glyph.contours;
+	var stems = glyph.stems;
 
 	var uppx = upm / ppem;
 	var glyfBottom = -round(0.075 * upm)
@@ -662,7 +451,7 @@ function autohint(contours, stems, ppem){
 		// We will perform stem movement using greedy method
 		// Not always works but okay for most characters
 		for(var j = 0; j < stems.length; j++){
-			debugger;
+
 			if(stems[j].ytouch <= ytouchmin) { 
 				// Stems[j] is a bottom stem
 				// DON'T MOVE IT
