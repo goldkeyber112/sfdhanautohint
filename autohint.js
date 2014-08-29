@@ -422,7 +422,8 @@ function autohint(glyph, ppem){
 		var ytouchmin0 = stems[0].ytouch;
 		var ytouchmin = ytouchmin0;
 		for(var j = 0; j < stems.length; j++) {
-			if(stems[j].roundMethod === -1 && stems[j].ytouch === ytouchmin0 && stems[j].ytouch - stems[j].touchwidth >= -1
+			debugger;
+			if(stems[j].roundMethod === -1 && stems[j].ytouch === ytouchmin0 && stems[j].yori - stems[j].touchwidth >= -blueFuzz
 				&& stems[j].yori - stems[j].ytouch >= 0.5 * uppx) {
 				ytouchmin = ytouchmin0 + uppx;
 				roundUpStem(stems[j])
@@ -601,7 +602,7 @@ function autohint(glyph, ppem){
 			seq[mink].touched = true;
 			seq[mink].ytouch = glyfBottom;
 			seq[mink].keypoint = true;
-			instructions.blueZoneAlignments.push(['BLUETOP', seq[mink], glyfBottom])
+			instructions.blueZoneAlignments.push(['BLUEBOTTOM', seq[mink], glyfBottom])
 		}
 		function flushTop(seq){
 			var mink = 0;
@@ -609,7 +610,7 @@ function autohint(glyph, ppem){
 			seq[mink].touched = true;
 			seq[mink].ytouch = glyfTop;
 			seq[mink].keypoint = true;
-			instructions.blueZoneAlignments.push(['BLUEBOTTOM', seq[mink], glyfTop])
+			instructions.blueZoneAlignments.push(['BLUETOP', seq[mink], glyfTop])
 		}
 		for(var j = 0; j < contours.length; j++) {
 			var seq = []

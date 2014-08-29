@@ -34,12 +34,12 @@ rl.on('line', function(line) {
 	} else if(/^EndSplineSet/.test(line)) {
 		if(curChar){
 			if(n % 100 === 0) process.stderr.write("Hinting glyph #" + n + '\n')
-			try{
+//			try{
 				generateInstruction(curChar);
 				if(curChar.instructions) buf += "TtInstrs:\n" + curChar.instructions + "\nEndTTInstrs\n";
-			} catch(ex) {
+//			} catch(ex) {
 
-			}
+//			}
 			n++;
 		}
 
@@ -86,6 +86,23 @@ function alignedStemInstrs(glyph, ppem, actions){
 	return tt;
 }
 
+function pushargs(tt){
+	var vals = [];
+	for(var j = 1; j < arguments.length; j++) vals = vals.concat(arguments[j]);
+
+	var datatype = 'B';
+	var shortpush = vals.length <= 8;
+	for(var j = 0; j < vals.length; j++) if(vals[j] < 0 || vals[j] > 255) datatype = 'W';
+	if(shortpush){
+		tt.push('PUSH' + datatype + '_' + vals.length);
+		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
+	} else if(vals.length < 256) {
+		tt.push('NPUSH' + datatype);
+		tt.push(vals.length);
+		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
+	}
+}
+
 function generateInstruction(ch){
 	var glyph = autohint.findStems(autohint.parseSFD(ch.input), 20, 140);
 	if(!glyph.stems.length) return;
@@ -114,11 +131,8 @@ function generateInstruction(ch){
 				if(roundups[k].shpix) shpixes.push(roundups[k].topkey[1].id);
 			}
 			if(shpixes.length && shpixes.length <= 16) {
-				tt.push('PUSHB_1', shpixes.length, 'SLOOP')
-				tt.push('PUSHW_' + shpixes.length)
-				shpixes.forEach(function(x){ tt.push(x) })
-				tt.push('PUSHW_1', 64)
-				tt.push('SHPIX')
+				pushargs(tt, shpixes, [64, shpixes.length]);
+				tt.push('SLOOP', 'SHPIX')
 			}
 			tt = tt.concat(roundingStemInstrs(glyph, ppem, roundups))
 		};
@@ -127,10 +141,8 @@ function generateInstruction(ch){
 			tt = tt.concat(roundingStemInstrs(glyph, ppem, rounddowns))
 		};
 		if(instrs.alignedStems.length) {
-			tt.push('PUSHB_1', 1, 'SLOOP');
 			tt = tt.concat(alignedStemInstrs(glyph, ppem, instrs.alignedStems))
-		}
-
+		};
 		tt.push('EIF')
 	};
 	// Hint for bluezone alignments
@@ -144,39 +156,28 @@ function generateInstruction(ch){
 		}
 		tt.push('RTG');
 		for(var k = 0; k < bluetops.length; k++){
-			tt.push(PUSH + '2', bluetops[k].id, 1, 'MIAP[rnd]')
+			pushargs(tt, [bluetops[k].id, 1]);
+			tt.push('MIAP[rnd]');
 		}
 		for(var k = 0; k < bluebottoms.length; k++){
-			tt.push(PUSH + '2', bluebottoms[k].id, 2, 'MIAP[rnd]')
+			pushargs(tt, [bluebottoms[k].id, 2]);
+			tt.push('MIAP[rnd]');
 		}		
 	}
 
 	// Hint for in-stem alignments
-	var stemops = h0.roundingStems.concat(h0.alignedStems);
+	var ials = [], stemops = h0.roundingStems.concat(h0.alignedStems);
 	for(var k = 0; k < stemops.length; k++){
-		if(stemops[k].topaligns.length){
-			tt.push(PUSH + '2', stemops[k].topaligns[0][1].id, stemops[k].topaligns.length,
-				'SLOOP', 'SRP0');
-			if(stemops[k].topaligns.length <= 16) {
-				tt.push(PUSH + stemops[k].topaligns.length)
-				for(var l = 0; l < stemops[k].topaligns.length; l++){
-					tt.push(stemops[k].topaligns[l][2].id)
-				};
-			}
-			tt.push('ALIGNRP')
-		}
-		if(stemops[k].bottomaligns.length){
-			tt.push(PUSH + '2', stemops[k].bottomaligns[0][1].id, stemops[k].bottomaligns.length,
-				'SLOOP', 'SRP0');
-			if(stemops[k].bottomaligns.length <= 16) {
-				tt.push(PUSH + stemops[k].bottomaligns.length)
-				for(var l = 0; l < stemops[k].bottomaligns.length; l++){
-					tt.push(stemops[k].bottomaligns[l][2].id)
-				};
-			}
-			tt.push('ALIGNRP')
-		}
+		if(stemops[k].topaligns.length) ials.push(stemops[k].topaligns)
+		if(stemops[k].bottomaligns.length) ials.push(stemops[k].bottomaligns)
 	}
+	ials.sort(function(p, q){ return p.length - q.length });
+	var looplen = 0
+	for(var k = 0; k < ials.length; k++){
+		pushargs(tt, ials[k].map(function(x){ return x[2].id }), [ials[k][0][1].id, ials[k].length])
+		tt.push('SLOOP', 'SRP0', 'ALIGNRP')
+	}
+
 	tt.push('IUP[y]')
 	ch.instructions = tt.join('\n')
 	glyph = tt = null;

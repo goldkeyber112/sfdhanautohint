@@ -1,0 +1,12 @@
+Open($1);
+Print("Hinting Non-CJK")
+SelectNone()
+SelectMore(UCodePoint(0x2e80), UCodePoint(0x2fff))
+SelectMore(UCodePoint(0x3300), UCodePoint(0x9fff))
+SelectMore(UCodePoint(0x20000), UCodePoint(0x2ffff))
+SelectInvert()
+AutoHint()
+ClearHints("Vertical")
+AutoInstr()
+Print("Generating")
+Generate($1:r + ".ttf")
