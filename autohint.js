@@ -251,6 +251,17 @@ function findStems(glyph, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
 		//return stem.yori >= radical.outline.ymax - MAX_STEM_WIDTH;
 		return true
 	}
+	function stemAtRadicalBottom(stem, radical){
+		var a0 = stem.low[0][0].xori, az = stem.low[stem.low.length - 1][stem.low[stem.low.length - 1].length - 1].xori
+		var b0 = stem.high[0][0].xori, bz = stem.high[stem.high.length - 1][stem.high[stem.high.length - 1].length - 1].xori
+		var xmin = Math.min(a0, b0, az, bz), xmax = Math.max(a0, b0, az, bz);
+		for(var j = 0; j < radical.parts.length; j++) for(var k = 0; k < radical.parts[j].points.length; k++) {
+			var point = radical.parts[j].points[k];
+			if(point.yori < stem.yori - stem.width - blueFuzz && point.xori < xmax && point.xori > xmin) return false;
+		}
+		//return stem.yori >= radical.outline.ymax - MAX_STEM_WIDTH;
+		return true
+	}
 	function stemSegments(radicals){
 		var stems = [];
 		for(var r = 0; r < radicals.length; r++) {
@@ -269,7 +280,9 @@ function findStems(glyph, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
 						stem.yori = stem.high[0][0].yori
 						stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori)
 						stem.atRadicalTop = stemAtRadicalTop(stem, radicals[r])
-						stem.atGlyphTop = stem.high[0][0].yori >= stats.ymax;
+						stem.atGlyphTop = stem.high[0][0].yori >= stats.ymax - blueFuzz;
+						stem.atRadicalBottom = stemAtRadicalBottom(stem, radicals[r])
+						stem.atGlyphBottom = stem.high[0][0].yori - stem.width <= stats.ymin + blueFuzz;
 						stem.belongRadical = radicals[r];
 						segs[j] = segs[k] = null;
 						radicalStems.push(stem);
@@ -280,8 +293,10 @@ function findStems(glyph, MIN_STEM_WIDTH, MAX_STEM_WIDTH) {
 
 			for(var k = 0; k < radicalStems.length; k++) {
 				for(var j = 0; j < radicalStems.length; j++) {
-					if(enoughOverlapBetweenStems(radicalStems[j], radicalStems[k]) && radicalStems[j].yori > radicalStems[k].yori)
+					if(enoughOverlapBetweenStems(radicalStems[j], radicalStems[k]) && radicalStems[j].yori > radicalStems[k].yori) {
 						radicalStems[k].atRadicalTop = radicalStems[k].atGlyphTop = false;
+						radicalStems[j].atRadicalBottom = radicalStems[j].atGlyphBottom = false;
+					}
 				}
 			}
 			stems = stems.concat(radicalStems)
@@ -346,6 +361,8 @@ function autohint(glyph, ppem){
 			stems[j].alignTo = null;
 			roundDownStem(stems[j])
 			if(stems[j].ytouch - roundUp(w) < glyfBottom){
+				roundUpStem(stems[j])
+			} else if(!stems[j].atRadicalBottom && stems[j].ytouch - roundUp(w) <= glyfBottom) {
 				roundUpStem(stems[j])
 			}
 		}
@@ -422,8 +439,7 @@ function autohint(glyph, ppem){
 		var ytouchmin0 = stems[0].ytouch;
 		var ytouchmin = ytouchmin0;
 		for(var j = 0; j < stems.length; j++) {
-			debugger;
-			if(stems[j].roundMethod === -1 && stems[j].ytouch === ytouchmin0 && stems[j].yori - stems[j].touchwidth >= -blueFuzz
+			if(stems[j].atRadicalBottom && stems[j].roundMethod === -1 && stems[j].ytouch === ytouchmin0 && stems[j].yori - stems[j].touchwidth >= -blueFuzz
 				&& stems[j].yori - stems[j].ytouch >= 0.5 * uppx) {
 				ytouchmin = ytouchmin0 + uppx;
 				roundUpStem(stems[j])
@@ -448,7 +464,7 @@ function autohint(glyph, ppem){
 					roundUpStem(stem);
 				};
 				var canAdjustUpToGlyphTop = stem.ytouch < glyfTop - blueFuzz && stem.ytouch >= glyfTop - uppx - 1
-				if(hasStemAtGlyphTop && stem.atRadicalTop && canAdjustUpToGlyphTop && stem.yori - stem.ytouch >= 0.2 * uppx) {
+				if(hasStemAtGlyphTop && stem.atRadicalTop && canAdjustUpToGlyphTop && stem.yori - stem.ytouch >= 0.25 * uppx) {
 					if(stem.roundMethod === -1) {
 						ytouchmax = ytouchmax0 + uppx;
 						roundUpStem(stem);
@@ -463,7 +479,7 @@ function autohint(glyph, ppem){
 		// We will perform stem movement using greedy method
 		// Not always works but okay for most characters
 		for(var j = 0; j < stems.length; j++){
-
+			debugger;
 			if(stems[j].ytouch <= ytouchmin) { 
 				// Stems[j] is a bottom stem
 				// DON'T MOVE IT
