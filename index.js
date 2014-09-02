@@ -11,14 +11,23 @@ var n = 0;
 var buf = '';
 var curChar = false;
 
+var strategy = {
+	MIN_STEM_WIDTH: 20,
+	MAX_STEM_WIDTH: 140,
+	STEM_SIDE_MIN_RISE: 40,
+	STEM_SIDE_MIN_DESCENT: 60
+}
+
 var PPEM_MIN = 10;
 var PPEM_MAX = 36;
 var MAX_SW = 4;
 
+var upm = 1000;
+
 var cvt = [0, 840, -75];
 for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
 	for(var w = 1; w <= MAX_SW; w++){
-		cvt.push(-Math.round(1000 / ppem * w))
+		cvt.push(-Math.round(upm / ppem * w))
 	}
 }
 
@@ -103,43 +112,46 @@ function pushargs(tt){
 	}
 }
 
+function rtg(y, ppem){
+	return Math.round(y / upm * ppem) / ppem * upm
+}
+
 function generateInstruction(ch){
-	var glyph = autohint.findStems(autohint.parseSFD(ch.input), 20, 140);
+	var glyph = autohint.findStems(autohint.parseSFD(ch.input), strategy);
 	if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'MPPEM'];
 	var cvts = [];
 	for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
-		var instrs = autohint.autohint(glyph, ppem).instructions;
+		var instrs = autohint.autohint(glyph, ppem, strategy).instructions;
 		tt.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
-		var roundups = [];
-		var rounddowns = [];
+		var biases = {}
 		for(var k = 0; k < instrs.roundingStems.length; k++){
-			if(instrs.roundingStems[k].topkey[3] >= 0) {
-				if(instrs.roundingStems[k].topkey[0] === 'ROUNDDOWN') rounddowns.push(instrs.roundingStems[k])
-				else roundups.push(instrs.roundingStems[k]);
-			} else {
-				if(instrs.roundingStems[k].topkey[0] === 'ROUNDDOWN') roundups.push(instrs.roundingStems[k])
-				else rounddowns.push(instrs.roundingStems[k]);
+			var tk = instrs.roundingStems[k].topkey;
+			var original = tk[2]
+			var rounded = rtg(original, ppem);
+			var target = tk[3];
+			var bias = 64 * Math.round((target - rounded) / (upm / ppem));
+			var roundBias = (original - rounded) / (upm / ppem);
+			if(roundBias >= 0.48 && roundBias <= 0.52) {
+				// RTG rounds TK down, but it is close to the middle
+				bias -= 16
+			} else if(roundBias >= -0.52 && roundBias <= -0.48) {
+				bias += 16
 			}
-			if(instrs.roundingStems[k].topkey[0] === 'ROUNDUP2') instrs.roundingStems[k].shpix = true;
+			if(!biases[bias]) biases[bias] = []
+			biases[bias].push(instrs.roundingStems[k])
 		};
-
-		if(roundups.length){
-			tt.push('RUTG');
-			var shpixes = [];
-			for(var k = 0; k < roundups.length; k++){
-				if(roundups[k].shpix) shpixes.push(roundups[k].topkey[1].id);
-			}
-			if(shpixes.length && shpixes.length <= 16) {
-				pushargs(tt, shpixes, [64, shpixes.length]);
+		tt.push('RTG');
+		// SHPIX instructions
+		for(var bias in biases) {
+			if(bias - 0) {
+				pushargs(tt, biases[bias].map(function(s){ return s.topkey[1].id }));
+				pushargs(tt, [bias - 0, biases[bias].length]);
 				tt.push('SLOOP', 'SHPIX')
 			}
-			tt = tt.concat(roundingStemInstrs(glyph, ppem, roundups))
-		};
-		if(rounddowns.length){
-			tt.push('RDTG');
-			tt = tt.concat(roundingStemInstrs(glyph, ppem, rounddowns))
-		};
+		}
+
+		tt = tt.concat(roundingStemInstrs(glyph, ppem, instrs.roundingStems))
 		if(instrs.alignedStems.length) {
 			tt = tt.concat(alignedStemInstrs(glyph, ppem, instrs.alignedStems))
 		};
@@ -147,7 +159,7 @@ function generateInstruction(ch){
 	};
 	// Hint for bluezone alignments
 	var PUSH = (glyph.nPoints < 256 ? 'PUSHB_' : 'PUSHW_');
-	var h0 = autohint.autohint(glyph, 1000).instructions;
+	var h0 = autohint.autohint(glyph, upm, strategy).instructions;
 	if(h0.blueZoneAlignments.length) {
 		var bluetops = [], bluebottoms = [];
 		for(var k = 0; k < h0.blueZoneAlignments.length; k++){
