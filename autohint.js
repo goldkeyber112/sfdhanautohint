@@ -106,7 +106,7 @@ function parseSFD(input){
 	return glyph
 }
 
-function overlapRatio(a, b){
+function overlapInfo(a, b){ 
 	var events = []
 	for(var j = 0; j < a.length; j++){
 		var low = Math.min(a[j][0].xori, a[j][a[j].length - 1].xori)
@@ -138,9 +138,17 @@ function overlapRatio(a, b){
 		if(!ac && ab) la += e.at - sa;
 		if(bc && !bb) sb += e.at;
 		if(!bc && bb) lb += e.at - sb;
+	};
+	return {
+		len: len, 
+		la: la, 
+		lb: lb
 	}
+}
 
-	return len / Math.max(la, lb)
+function overlapRatio(a, b){
+	var i = overlapInfo(a, b)
+	return i.len / Math.max(i.la, i.lb)
 }
 
 function enoughOverlapBetweenSegments(a, b, ratio){
@@ -152,10 +160,9 @@ function enoughOverlapBetweenStems(a, b){
 		|| enoughOverlapBetweenSegments(a.low, b.high, MIN_STEM_OVERLAP_RATIO) 
 		|| enoughOverlapBetweenSegments(a.high, b.low, MIN_STEM_OVERLAP_RATIO)
 }
-function stemOverlapRatio(a, b){
-	return Math.max(overlapRatio(a.low, b.low), overlapRatio(a.high, b.low), overlapRatio(a.low, b.high), overlapRatio(a.high, b.high))
+function stemOverlapLength(a, b){
+	return Math.max(overlapInfo(a.low, b.low).len, overlapInfo(a.high, b.low).len, overlapInfo(a.low, b.high).len, overlapInfo(a.high, b.high).len)
 }
-
 
 var MIN_OVERLAP_RATIO = 0.3;
 var MIN_STEM_OVERLAP_RATIO = 0.2;
@@ -165,7 +172,38 @@ var SLOPE_FUZZ = 0.04
 function findStems(glyph, strategy) {
 	var MIN_STEM_WIDTH = strategy.MIN_STEM_WIDTH;
 	var MAX_STEM_WIDTH = strategy.MAX_STEM_WIDTH;
+	var STEM_SIDE_MIN_RISE = strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_RISE = strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
+	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
+
 	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
+	var COEFF_A_MULTIPLIER = strategy.COEFF_A_MULTIPLIER || 15;
+	var COEFF_A_SAME_RADICAL = strategy.COEFF_A_SAME_RADICAL || 4;
+	var COEFF_A_FEATURE_LOSS = strategy.COEFF_A_FEATURE_LOSS || 7;
+	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 30;
+	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 4;
+	var COEFF_S = strategy.COEFF_S || 1000;
+	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -16;
+
+	function atRadicalTop(stem){
+		return !stem.hasSameRadicalStemAbove
+			&& !(stem.hasRadicalPointAbove && stem.radicalCenterRise > STEM_CENTER_MIN_RISE)
+			&& !(stem.hasRadicalLeftAdjacentPointAbove && stem.radicalLeftAdjacentRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasRadicalRightAdjacentPointAbove && stem.radicalRightAdjacentRise > STEM_SIDE_MIN_RISE)
+	}
+	function atGlyphTop(stem){
+		return atRadicalTop(stem) && !stem.hasGlyphStemAbove
+	}
+	function atRadicalBottom(stem){
+		return !stem.hasSameRadicalStemBelow
+			&& !(stem.hasRadicalPointBelow && stem.radicalCenterDescent > STEM_CENTER_MIN_DESCENT)
+			&& !(stem.hasRadicalLeftAdjacentPointBelow && stem.radicalLeftAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasRadicalRightAdjacentPointBelow && stem.radicalRightAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+	}
+	function atGlyphBottom(stem){
+		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow
+	};
 
 	function statGlyph(contours){
 		var points = []
@@ -378,23 +416,31 @@ function findStems(glyph, strategy) {
 				A[j][k] = C[j][k] = S[j][k] = 0
 			}
 		};
-		for(var j = 0; j < n; j++){
+		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
-				var ovr = stemOverlapRatio(stems[j], stems[k]);
-				A[j][k] =   4 * ovr * (1 + 3 * (stems[j].belongRadical === stems[k].belongRadical));
-				C[j][k] =  10 * ovr * (1 + 1 * (stems[j].belongRadical === stems[k].belongRadical));
-				S[j][k] = 200 * ovr * (1 + 3 * (stems[j].belongRadical === stems[k].belongRadical));
-				if(ovr === 0 && stems[j].yori === stems[k].yori) {
-					A[j][k] = -16
+				var ovr = stemOverlapLength(stems[j], stems[k]) / upm;
+				var coeffA = 1;
+				if(stems[j].belongRadical === stems[k].belongRadical) {
+					if(atRadicalTop(stems[j]) || atRadicalBottom(stems[j])) coeffA = COEFF_A_FEATURE_LOSS
+					else coeffA = COEFF_A_SAME_RADICAL
 				}
-			}
+				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
+
+				var coeffC = 1;
+				if(stems[j].belongRadical === stems[k].belongRadical) coeffC = COEFF_C_SAME_RADICAL;
+				C[j][k] = COEFF_C_MULTIPLIER * ovr * coeffC;
+				S[j][k] = COEFF_S;
+				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz) {
+					A[j][k] = COEFF_A_SYMMETRY
+				};
+			};
 		};
 		return {
 			alignment: A, 
 			collision: C,
 			swap: S
 		}
-	}
+	};
 	var radicals = findRadicals(glyph.contours);
 	var stats = statGlyph(glyph.contours);
 	findHorizontalSegments(radicals);
@@ -423,7 +469,24 @@ function autohint(glyph, ppem, strategy) {
 	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
 	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
 
+	var POPULATION_LIMIT = strategy.POPULATION_LIMIT || 50;
+	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 150;
+	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 7;
+	var MUTANT_PROBABLITY = strategy.MUTANT_PROBABLITY || 0.25;
+	var ELITE_COUNT = strategy.ELITE_COUNT || 3;
+
 	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
+
+	var WIDTH_FACTOR_X = strategy.WIDTH_FACTOR_X || 2;
+	var MIN_ADJUST_PPEM = strategy.MIN_ADJUST_PPEM || 16;
+	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
+
+	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 3;
+	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 6;
+	var ABLATION_GLYPH_EDGE = strategy.ABLATION_GLYPH_EDGE || 15;
+
+
+
 	var shouldAddGlyphHeight = strategy.shouldAddGlyphHeight || function(stem, ppem, glyfTop, glyfBottom) {
 		return stem.yori - stem.ytouch >= 0.25 * uppx
 	}
@@ -471,10 +534,6 @@ function autohint(glyph, ppem, strategy) {
 		stem.alignTo = null;
 	}
 
-	var WIDTH_FACTOR_X = 2
-	var MIN_ADJUST_PPEM = 12
-	var MAX_ADJUST_PPEM = 32
-
 	function clamp(x){ return Math.min(1, Math.max(0, x)) }
 	function xclamp(x, low, high){ return Math.min(high, Math.max(low, x)) }
 	function calculateWidth(w){
@@ -501,7 +560,35 @@ function autohint(glyph, ppem, strategy) {
 	}
 	function atGlyphBottom(stem){
 		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow
-	}
+	};
+
+	var avaliables = function(stems){
+		var avaliables = []
+		for(var j = 0; j < stems.length; j++) {
+			var low = roundDown(stems[j].yori) - uppx;
+			var high = roundUp(stems[j].yori) + uppx;
+			var w = calculateWidth(stems[j].width);
+			low = Math.max(low, atGlyphBottom(stems[j]) ? glyfBottom + w : glyfBottom + w + uppx);
+			high = Math.min(high, atGlyphTop(stems[j]) ? glyfTop : glyfTop - uppx);
+			
+			var center = stems[j].yori - stems[j].width / 2 + w / 2;
+			if(atGlyphTop(stems[j]) && center > glyfTop - uppx) center = glyfTop;
+			else if(!stems[j].hasGlyphStemAbove && center > glyfTop - 2 * uppx) center = glyfTop - uppx;
+			if(atGlyphBottom(stems[j]) && center < glyfBottom + w + uppx) center = glyfBottom + w;
+			else if(!stems[j].hasGlyphStemBelow && center < glyfBottom + w + 2 * uppx) center = glyfBottom + w + uppx;
+			center = xclamp(center, low, high);
+			
+			var ablationCoeff = !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
+			                  : !stems[j].hasSameRadicalStemAbove || !stems[j].hasSameRadicalStemBelow ? ABLATION_RADICAL_EDGE : ABLATION_IN_RADICAL;
+			avaliables[j] = {
+				low: Math.round(low / uppx),
+				high: Math.round(high / uppx), 
+				center: center, 
+				ablationCoeff: ablationCoeff / uppx
+			};
+		}
+		return avaliables;
+	}(stems);
 
 	function initStemTouches(stems, radicals) {
 		for(var j = 0; j < stems.length; j++) {
@@ -598,14 +685,16 @@ function autohint(glyph, ppem, strategy) {
 				var canAdjustUpToGlyphTop = stem.ytouch < glyfTop - blueFuzz && stem.ytouch >= glyfTop - uppx - 1;
 				if(stem.roundMethod === -1 && stem.ytouch < glyfTop - blueFuzz && stem.yori - stem.ytouch >= 0.47 * uppx) {
 					// Rounding-related upward adjustment
-					roundUpStem(stem)
+					roundUpStem(stem);
 				} else if(canAdjustUpToGlyphTop && shouldAddGlyphHeight(stem, ppem, glyfTop, glyfBottom)) {
 					// Strategy-based upward adjustment
 					roundUpStem(stem);
 				};
 				stem.allowMoveUpward = stem.ytouch < glyfTop - blueFuzz;
 			} else {
-				if(stem.ytouch < glyfTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx) roundUpStem(stem);
+				if(stem.ytouch < glyfTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx){
+					roundUpStem(stem);
+				}
 				stem.allowMoveUpward = stem.ytouch < glyfTop - uppx - blueFuzz
 			}
 		};
@@ -651,35 +740,14 @@ function autohint(glyph, ppem, strategy) {
 				}
 			}
 		};
-	};
 
-	var POPULATION_LIMIT = 20;
-	var CHILDREN_LIMIT = 200;
-	var EVOLUTION_STAGES = 5;
-	var MUTANT_PROBABLITY = 0.4;
-	var ELITE_COUNT = 1;
-	function findAvaliablePositions(stems) {
-		var avaliables = []
-		for(var j = 0; j < stems.length; j++) {
-			var low = roundDown(stems[j].yori) - uppx;
-			var high = roundUp(stems[j].yori) + uppx;
-			var w = calculateWidth(stems[j].width);
-			low = Math.max(low, atGlyphBottom(stems[j]) ? glyfBottom + w : glyfBottom + w + uppx);
-			high = Math.min(high, atGlyphTop(stems[j]) ? glyfTop : glyfTop - uppx);
-			var center = stems[j].yori;
-			if(atGlyphTop(stems[j]) && center > glyfTop - uppx) center = glyfTop;
-			if(atGlyphBottom(stems[j]) && center < glyfBottom + w + uppx) center = glyfBottom + w;
-			center = xclamp(center, low, high);
-			var ablationCoeff = stems[j].hasGlyphStemAbove && stems[j].hasGlyphStemBelow ? 3 : 15;
-			avaliables[j] = {
-				low: Math.round(low / uppx),
-				high: Math.round(high / uppx), 
-				center: center, 
-				ablationCoeff: ablationCoeff / uppx
-			};
-		}
-		return avaliables;
-	}
+		// Step 2: Rebalance
+		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
+			if(canBeAdjustedUp(stems, transitions, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
+				if(stems[j].roundMethod === -1) { roundUpStem(stems[j]) }
+			}
+		};
+	};
 
 	function potential(y, A, C, S, avaliables) {
 		var p = 0;
@@ -687,20 +755,23 @@ function autohint(glyph, ppem, strategy) {
 		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
 				if(y[j] === y[k]) p += A[j][k]
-				if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
+				else if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
 				if(y[j] < y[k]) p += S[j][k]
 			};
 			p += avaliables[j].ablationCoeff * Math.abs(y[j] * uppx - avaliables[j].center)
 		}
 		return p;
 	};
-
 	function byPotential(p, q){ return p.potential - q.potential };
-	var avaliables = findAvaliablePositions(stems);
 	function Entity(y){
 		this.gene = y;
 		this.potential = potential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
 	};
+	function mutant(y1){
+		var rj = Math.floor(Math.random() * y1.length);
+		y1[rj] = avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999));	
+	}
+
 	function evolve(population) {
 		var children = population.slice(ELITE_COUNT);
 		for(var c = ELITE_COUNT; c < CHILDREN_LIMIT; c++) {
@@ -708,10 +779,7 @@ function autohint(glyph, ppem, strategy) {
 			var mother = population[Math.floor(Math.random() * POPULATION_LIMIT)].gene;
 			var y1 = father.slice(0);
 			for(var j = 0; j < father.length; j++) if(Math.random() > 0.5) y1[j] = mother[j]
-			if(Math.random() < MUTANT_PROBABLITY) {
-				var rj = Math.floor(Math.random() * y1.length);
-				y1[rj] = avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low));	
-			};
+			if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
 			children[c] = new Entity(y1)
 		};
 		children = children.sort(byPotential);
@@ -731,8 +799,7 @@ function autohint(glyph, ppem, strategy) {
 		var population = [new Entity(y0)];
 		for(var j = 1; j < POPULATION_LIMIT; j++){
 			var y1 = y0.slice(0);
-			var rj = Math.floor(Math.random() * n);
-			y1[rj] = avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low));
+			mutant(y1);
 			population[j] = new Entity(y1)
 		};
 
