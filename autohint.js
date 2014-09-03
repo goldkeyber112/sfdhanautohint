@@ -14,7 +14,16 @@ function Contour(){
 	this.points = []
 	this.ccw = false
 }
-Contour.prototype.stat = function(){
+Contour.prototype.stat = function() {
+	var points = this.points;
+	if(points[0].yori > points[points.length - 2].yori && points[0].yori >= points[1].yori ||points[0].yori < points[points.length - 2].yori && points[0].yori <= points[1].yori) {
+		points[0].yExtrema = true;
+	}
+	for(var j = 0; j < points.length - 1; j++){
+		if(j > 0 && 
+			(  points[j].yori > points[j - 1].yori && points[j].yori >= points[j + 1].yori 
+			|| points[j].yori < points[j - 1].yori && points[j].yori <= points[j + 1].yori)) points[j].yExtrema = true;
+	};
 	var xoris = this.points.map(function(p){ return p.xori })
 	var yoris = this.points.map(function(p){ return p.yori })
 	this.xmax = Math.max.apply(Math, xoris)
@@ -427,7 +436,6 @@ function autohint(glyph, ppem, strategy) {
 
 	function clamp(x){ return Math.min(1, Math.max(0, x)) }
 	function calculateWidth(w){
-		if(ppem < 20) return uppx;
 		if(w < uppx) return uppx;
 		else if (w < 2 * uppx) return uppx * WIDTH_FACTOR_X 
 			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X));
@@ -436,9 +444,7 @@ function autohint(glyph, ppem, strategy) {
 
 	function initStemTouches(stems, radicals) {
 		for(var j = 0; j < stems.length; j++) {
-			var w = calculateWidth(stems[j].width);
-			if(w < 1.9 * uppx) w = uppx
-			// stems[j].touchwidth = w;
+			var w = Math.round(calculateWidth(stems[j].width) / uppx) * uppx;
 			stems[j].touchwidth = uppx;
 			stems[j].alignTo = null;
 			roundDownStem(stems[j])
@@ -704,11 +710,11 @@ function autohint(glyph, ppem, strategy) {
 		// Stems are rounded down by default, may cause improper movements
 		// Therefore we bring them upward one pixel when there is enough space
 		// above.
-		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j])) {
+		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
 			if(canBeAdjustedUp(stems, transitions, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.5 * uppx) {
 				if(stems[j].roundMethod === -1) { roundUpStem(stems[j]) }
 			}
-		}
+		};
 		// Stem 5 : Stem Width Allocation
 		// In this step we will adjust stem width when there is enough space below the stem.
 		for(var j = stems.length - 1; j >= 0; j--) {
@@ -716,7 +722,7 @@ function autohint(glyph, ppem, strategy) {
 			var sa = spaceAbove(stems, transitions, j, ytouchmax + uppx * 3);
 			var w = Math.round(Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width)) / uppx) * uppx;
 			if(w <= uppx) continue;
-			if(sb >= 1.75 * uppx && stems[j].ytouch - w >= glyfBottom - 1) {
+			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > glyfBottom || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= glyfBottom - 1)) {
 				stems[j].touchwidth = w;
 			} else if (sa > 1.6 * uppx && stems[j].roundMethod === -1 && stems[j].ytouch - w + uppx >= glyfBottom - 1 && stems[j].ytouch < glyfTop - uppx) {
 				roundUpStem(stems[j]);
@@ -774,46 +780,21 @@ function autohint(glyph, ppem, strategy) {
 	}
 
 	function touchBlueZonePoints(contours) {
-		function flushBottom(seq){
-			var mink = 0;
-			for(var s = 0; s < seq.length; s++) if(seq[s].yori < seq[mink].yori) mink = s;
-			seq[mink].touched = true;
-			seq[mink].ytouch = glyfBottom;
-			seq[mink].keypoint = true;
-			instructions.blueZoneAlignments.push(['BLUEBOTTOM', seq[mink], glyfBottom])
-		}
-		function flushTop(seq){
-			var mink = 0;
-			for(var s = 0; s < seq.length; s++) if(seq[s].yori > seq[mink].yori) mink = s;
-			seq[mink].touched = true;
-			seq[mink].ytouch = glyfTop;
-			seq[mink].keypoint = true;
-			instructions.blueZoneAlignments.push(['BLUETOP', seq[mink], glyfTop])
-		}
 		for(var j = 0; j < contours.length; j++) {
-			var seq = []
 			for(var k = 0; k < contours[j].points.length - 1; k++){
 				var point = contours[j].points[k];
-				if(point.ytouch <= -65){
-					if(!point.touched && !point.donttouch && !point.interpolated) seq.push(point);
-				} else if(seq.length){
-					flushBottom(seq); seq = [];
+				if(point.ytouch <= -65 && point.yExtrema){
+					point.touched = true;
+					point.ytouch = glyfBottom;
+					point.keypoint = true;
+					instructions.blueZoneAlignments.push(['BLUEBOTTOM', point, glyfTop])
 				}
-			}
-			if(seq.length){
-				flushBottom(seq); seq = [];
-			}
-			var seq = []
-			for(var k = 0; k < contours[j].points.length - 1; k++){
-				var point = contours[j].points[k];
-				if(point.ytouch >= 825){
-					if(!point.touched && !point.donttouch && !point.interpolated) seq.push(point);
-				} else if(seq.length){
-					flushTop(seq); seq = [];
+				if(point.ytouch >= 825 && point.yExtrema){
+					point.touched = true;
+					point.ytouch = glyfTop;
+					point.keypoint = true;
+					instructions.blueZoneAlignments.push(['BLUETOP', point, glyfTop])
 				}
-			}
-			if(seq.length){
-				flushTop(seq); seq = [];
 			}
 		}
 	}

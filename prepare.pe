@@ -1,0 +1,10 @@
+Open($1);
+SelectAll();
+ClearHints();
+ClearInstrs();
+ClearTable('fpgm');
+ClearTable('prep');
+ClearTable('cvt ');
+ClearTable('maxp');
+SetFontOrder(2);
+Save($1:r + ".sfd")
