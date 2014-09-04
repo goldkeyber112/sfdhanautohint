@@ -60,41 +60,7 @@ rl.on('line', function(line) {
 	}
 });
 
-function roundingStemInstrs(glyph, ppem, actions){
-	var tt = [];
-	for(var k = 0; k < actions.length; k++){
-		var sw = actions[k].bottomkey[3] | 0;
-		if(glyph.nPoints < 256 && sw > 0 && sw < MAX_SW) {
-			tt.push('PUSHB_3', actions[k].bottomkey[2].id, 3 + MAX_SW * (ppem - PPEM_MIN) + (sw - 1), actions[k].topkey[1].id,
-				'MDAP[rnd]',
-				'MIRP[0]')
-		} else {
-			tt.push('PUSHW_3', actions[k].bottomkey[2].id, -(actions[k].bottomkey[3].toFixed(0) * 64), actions[k].topkey[1].id,
-				'MDAP[rnd]',
-				'MSIRP[0]')
-		}
-	}
-	return tt;
-}
-function alignedStemInstrs(glyph, ppem, actions){
-	var tt = [];
-	for(var k = 0; k < actions.length; k++){
-		var sw = actions[k].bottomkey[3] | 0;
-		if(glyph.nPoints < 256 && sw > 0 && sw < MAX_SW) {
-			tt.push('PUSHB_5', actions[k].bottomkey[2].id, 3 + MAX_SW * (ppem - PPEM_MIN) + (sw - 1), actions[k].topkey[2].id, 0, actions[k].topkey[1].id,
-				'SRP0',
-				'MIRP[10000]',
-				'MIRP[0]')
-		} else {
-			tt.push('PUSHW_5', actions[k].bottomkey[2].id, -(actions[k].bottomkey[3].toFixed(0) * 64), actions[k].topkey[2].id, 0, actions[k].topkey[1].id,
-				'SRP0',
-				'MIRP[10000]',
-				'MSIRP[0]')
-		}
-	}
-	return tt;
-}
-
+function rtg(y, ppem){ return Math.round(y / upm * ppem) / ppem * upm }
 function pushargs(tt){
 	var vals = [];
 	for(var j = 1; j < arguments.length; j++) vals = vals.concat(arguments[j]);
@@ -110,17 +76,94 @@ function pushargs(tt){
 		tt.push(vals.length);
 		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
 	}
-}
+};
 
-function rtg(y, ppem){
-	return Math.round(y / upm * ppem) / ppem * upm
+function roundingStemInstrs(glyph, ppem, actions){
+	var tt = [];
+	var args = [];
+	var movements = [];
+	for(var k = 0; k < actions.length; k++){
+		if(actions[k].bottomkey.length > 3) {
+			var sw = actions[k].bottomkey[3] | 0;
+			if(glyph.nPoints < 256 && sw > 0 && sw < MAX_SW) {
+				args.push(actions[k].bottomkey[2].id, 3 + MAX_SW * (ppem - PPEM_MIN) + (sw - 1), actions[k].topkey[1].id);
+				movements.push('MIRP[0]', 'MDAP[rnd]');
+			} else {
+				args.push(actions[k].bottomkey[2].id, -(actions[k].bottomkey[3].toFixed(0) * 64), actions[k].topkey[1].id);
+				movements.push('MIRP[0]', 'MDAP[rnd]');
+			}
+		} else {
+			args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
+			movements.push('MDRP[0]', 'MDAP[rnd]');
+		}
+	};
+	if(args.length) {
+		pushargs(tt, args);
+		return tt.concat(movements.reverse());
+	} else {
+		return []
+	}
+};
+function by_rp(a, b){
+	return a[1] - b[1] || a[2] - b[2]
+}
+function ipInstrs(actions){
+	var tt = [];
+	var args = [];
+	var movements = [];
+	actions = actions.sort(by_rp);
+	var cur_rp1 = -1;
+	var cur_rp2 = -1;
+	for(var k = 0; k < actions.length; k++) {
+		var rp1 = actions[k][1];
+		var rp2 = actions[k][2];
+		if(cur_rp1 !== rp1) {
+			cur_rp1 = rp1;
+			args.push(rp1.id);
+			movements.push('SRP1')
+		};
+		if(cur_rp2 !== rp2) {
+			cur_rp2 = rp2;
+			args.push(rp2.id);
+			movements.push('SRP2')
+		};
+		args.push(actions[k][3].id);
+		movements.push('IP')
+	};
+	if(args.length) {
+		pushargs(tt, args.reverse())
+		return tt.concat(movements);
+	} else {
+		return []
+	}
 }
 
 function generateInstruction(ch){
 	var glyph = autohint.findStems(autohint.parseSFD(ch.input), strategy);
 	if(!glyph.stems.length) return;
-	var tt = ['SVTCA[y-axis]', 'MPPEM'];
-	var cvts = [];
+	var tt = ['SVTCA[y-axis]']
+
+	// Hint for bluezone alignments
+	var h0 = autohint.autohint(glyph, upm, strategy).instructions;
+	if(h0.blueZoneAlignments.length) {
+		var bluetops = [], bluebottoms = [];
+		for(var k = 0; k < h0.blueZoneAlignments.length; k++){
+			if(h0.blueZoneAlignments[k][0] === 'BLUETOP') bluetops.push(h0.blueZoneAlignments[k][1]);
+			else bluebottoms.push(h0.blueZoneAlignments[k][1]);
+		}
+		tt.push('RTG');
+		for(var k = 0; k < bluetops.length; k++){
+			pushargs(tt, [bluetops[k].id, 1]);
+			tt.push('MIAP[rnd]');
+		}
+		for(var k = 0; k < bluebottoms.length; k++){
+			pushargs(tt, [bluebottoms[k].id, 2]);
+			tt.push('MIAP[rnd]');
+		}
+	}
+
+
+	tt.push('MPPEM');
 	for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
 		var instrs = autohint.autohint(glyph, ppem, strategy).instructions;
 		tt.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
@@ -151,32 +194,13 @@ function generateInstruction(ch){
 			}
 		}
 
-		tt = tt.concat(roundingStemInstrs(glyph, ppem, instrs.roundingStems))
-		if(instrs.alignedStems.length) {
-			tt = tt.concat(alignedStemInstrs(glyph, ppem, instrs.alignedStems))
-		};
+		tt = tt.concat(roundingStemInstrs(glyph, ppem, instrs.roundingStems));
+
+
 		tt.push('EIF')
 	};
-	// Hint for bluezone alignments
-	var PUSH = (glyph.nPoints < 256 ? 'PUSHB_' : 'PUSHW_');
-	var h0 = autohint.autohint(glyph, upm, strategy).instructions;
-	if(h0.blueZoneAlignments.length) {
-		var bluetops = [], bluebottoms = [];
-		for(var k = 0; k < h0.blueZoneAlignments.length; k++){
-			if(h0.blueZoneAlignments[k][0] === 'BLUETOP') bluetops.push(h0.blueZoneAlignments[k][1]);
-			else bluebottoms.push(h0.blueZoneAlignments[k][1]);
-		}
-		tt.push('RTG');
-		for(var k = 0; k < bluetops.length; k++){
-			pushargs(tt, [bluetops[k].id, 1]);
-			tt.push('MIAP[rnd]');
-		}
-		for(var k = 0; k < bluebottoms.length; k++){
-			pushargs(tt, [bluebottoms[k].id, 2]);
-			tt.push('MIAP[rnd]');
-		}		
-	}
-
+	// Interpolations
+	tt = tt.concat(ipInstrs(h0.interpolations));
 	// Hint for in-stem alignments
 	var ials = [], stemops = h0.roundingStems.concat(h0.alignedStems);
 	for(var k = 0; k < stemops.length; k++){

@@ -1,4 +1,6 @@
+Print("Reading Font...")
 Open($1);
+Print("Removing Instructions...")
 SelectAll();
 ClearHints();
 ClearInstrs();
@@ -6,5 +8,7 @@ ClearTable('fpgm');
 ClearTable('prep');
 ClearTable('cvt ');
 ClearTable('maxp');
+Print("Outline Cleanup...")
 SetFontOrder(2);
+Print("Saving...");
 Save($1:r + ".sfd")

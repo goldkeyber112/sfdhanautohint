@@ -161,7 +161,7 @@ function enoughOverlapBetweenStems(a, b){
 		|| enoughOverlapBetweenSegments(a.high, b.low, MIN_STEM_OVERLAP_RATIO)
 }
 function stemOverlapLength(a, b){
-	return Math.max(overlapInfo(a.low, b.low).len, overlapInfo(a.high, b.low).len, overlapInfo(a.low, b.high).len, overlapInfo(a.high, b.high).len)
+	return Math.max(overlapRatio(a.low, b.low), overlapRatio(a.high, b.low), overlapRatio(a.low, b.high), overlapRatio(a.high, b.high))
 }
 
 var MIN_OVERLAP_RATIO = 0.3;
@@ -178,13 +178,53 @@ function findStems(glyph, strategy) {
 	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
 
 	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
-	var COEFF_A_MULTIPLIER = strategy.COEFF_A_MULTIPLIER || 15;
+	var COEFF_A_MULTIPLIER = strategy.COEFF_A_MULTIPLIER || 5;
 	var COEFF_A_SAME_RADICAL = strategy.COEFF_A_SAME_RADICAL || 4;
-	var COEFF_A_FEATURE_LOSS = strategy.COEFF_A_FEATURE_LOSS || 7;
-	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 30;
-	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 4;
-	var COEFF_S = strategy.COEFF_S || 1000;
-	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -16;
+	var COEFF_A_FEATURE_LOSS = strategy.COEFF_A_FEATURE_LOSS || 15;
+	var COEFF_A_RADICAL_MERGE = strategy.COEFF_A_RADICAL_MERGE || 1;
+	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 25;
+	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 3;
+	var COEFF_S = strategy.COEFF_S || 10000;
+	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -40;
+
+	function calculateCollisionMatrices(stems) {
+		var A = [], C = [], S = [], n = stems.length;
+		for(var j = 0; j < n; j++){
+			A[j] = [];
+			C[j] = [];
+			S[j] = [];
+			for(var k = 0; k < n; k++) {
+				A[j][k] = C[j][k] = S[j][k] = 0
+			}
+		};
+		for(var j = 0; j < n; j++) {
+			for(var k = 0; k < j; k++) {
+				var ovr = stemOverlapLength(stems[j], stems[k]);
+				var coeffA = 1;
+				if(stems[j].belongRadical === stems[k].belongRadical) {
+					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
+					else coeffA = COEFF_A_SAME_RADICAL
+				} else {
+					if(atRadicalBottom(stems[j]) && atRadicalTop(stems[k])) coeffA = COEFF_A_RADICAL_MERGE
+				}
+				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
+				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz && stems[j].belongRadical !== stems[k].belongRadical) {
+					A[j][k] = COEFF_A_SYMMETRY
+				};
+
+				var coeffC = 1;
+				if(stems[j].belongRadical === stems[k].belongRadical) coeffC = COEFF_C_SAME_RADICAL;
+				C[j][k] = COEFF_C_MULTIPLIER * ovr * coeffC;
+				
+				S[j][k] = COEFF_S;
+			};
+		};
+		return {
+			alignment: A, 
+			collision: C,
+			swap: S
+		}
+	};
 
 	function atRadicalTop(stem){
 		return !stem.hasSameRadicalStemAbove
@@ -236,12 +276,14 @@ function findStems(glyph, strategy) {
 			};
 			return radicals
 		} else {
-			var radical = {parts: [contours[j]], outline: contours[j]};
+			var radical = { parts: [contours[j]], outline: contours[j], subs: [] };
 			var radicals = [radical];
 			for(var k = 0; k < contours.length; k++) if(inclusions[j][k]) {
 				if(contours[k].ccw !== orient) {
 					radical.parts.push(contours[k]);
-					radicals = radicals.concat(inclusionToRadicals(inclusions, contours, k, !orient))
+					var inner = inclusionToRadicals(inclusions, contours, k, !orient);
+					radical.subs = inner;
+					radicals = radicals.concat(inner);
 				}
 			};
 			return radicals
@@ -406,41 +448,6 @@ function findStems(glyph, strategy) {
 		}
 		return stems.sort(function(a, b){ return a.yori - b.yori });
 	};
-	function calculateCollisionMatrices(stems) {
-		var A = [], C = [], S = [], n = stems.length;
-		for(var j = 0; j < n; j++){
-			A[j] = [];
-			C[j] = [];
-			S[j] = [];
-			for(var k = 0; k < n; k++) {
-				A[j][k] = C[j][k] = S[j][k] = 0
-			}
-		};
-		for(var j = 0; j < n; j++) {
-			for(var k = 0; k < j; k++) {
-				var ovr = stemOverlapLength(stems[j], stems[k]) / upm;
-				var coeffA = 1;
-				if(stems[j].belongRadical === stems[k].belongRadical) {
-					if(atRadicalTop(stems[j]) || atRadicalBottom(stems[j])) coeffA = COEFF_A_FEATURE_LOSS
-					else coeffA = COEFF_A_SAME_RADICAL
-				}
-				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
-
-				var coeffC = 1;
-				if(stems[j].belongRadical === stems[k].belongRadical) coeffC = COEFF_C_SAME_RADICAL;
-				C[j][k] = COEFF_C_MULTIPLIER * ovr * coeffC;
-				S[j][k] = COEFF_S;
-				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz) {
-					A[j][k] = COEFF_A_SYMMETRY
-				};
-			};
-		};
-		return {
-			alignment: A, 
-			collision: C,
-			swap: S
-		}
-	};
 	var radicals = findRadicals(glyph.contours);
 	var stats = statGlyph(glyph.contours);
 	findHorizontalSegments(radicals);
@@ -469,11 +476,11 @@ function autohint(glyph, ppem, strategy) {
 	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
 	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
 
-	var POPULATION_LIMIT = strategy.POPULATION_LIMIT || 50;
-	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 150;
-	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 7;
-	var MUTANT_PROBABLITY = strategy.MUTANT_PROBABLITY || 0.25;
-	var ELITE_COUNT = strategy.ELITE_COUNT || 3;
+	var POPULATION_LIMIT = strategy.POPULATION_LIMIT || 200;
+	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 50;
+	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 10;
+	var MUTANT_PROBABLITY = strategy.MUTANT_PROBABLITY || 0.4;
+	var ELITE_COUNT = strategy.ELITE_COUNT || 10;
 
 	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
 
@@ -481,9 +488,10 @@ function autohint(glyph, ppem, strategy) {
 	var MIN_ADJUST_PPEM = strategy.MIN_ADJUST_PPEM || 16;
 	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
 
-	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 3;
-	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 6;
+	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 2;
+	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 4;
 	var ABLATION_GLYPH_EDGE = strategy.ABLATION_GLYPH_EDGE || 15;
+	var ABLATION_GLYPH_HARD_EDGE = strategy.ABLATION_GLYPH_HARD_EDGE || 25;
 
 
 
@@ -506,11 +514,11 @@ function autohint(glyph, ppem, strategy) {
 	function roundUp(y){ return Math.ceil(y / upm * ppem) / ppem * upm }
 	function roundDownStem(stem){
 		stem.roundMethod = -1; // Positive for round up, negative for round down
-		if(roundUp(stem.yori) === roundDown(stem.yori)) {
-			stem.ytouch = roundDown(stem.yori) - uppx;
-		} else {
+//		if(roundUp(stem.yori) === roundDown(stem.yori)) {
+//			stem.ytouch = roundDown(stem.yori) - uppx;
+//		} else {
 			stem.ytouch = roundDown(stem.yori);
-		}
+//		}
 		stem.deltaY = 0
 	}
 	function roundUpStem(stem){
@@ -572,13 +580,14 @@ function autohint(glyph, ppem, strategy) {
 			high = Math.min(high, atGlyphTop(stems[j]) ? glyfTop : glyfTop - uppx);
 			
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
-			if(atGlyphTop(stems[j]) && center > glyfTop - uppx) center = glyfTop;
-			else if(!stems[j].hasGlyphStemAbove && center > glyfTop - 2 * uppx) center = glyfTop - uppx;
-			if(atGlyphBottom(stems[j]) && center < glyfBottom + w + uppx) center = glyfBottom + w;
-			else if(!stems[j].hasGlyphStemBelow && center < glyfBottom + w + 2 * uppx) center = glyfBottom + w + uppx;
+			if(atGlyphTop(stems[j]) && center > glyfTop - uppx && stems[j].yori - roundDown(center) >= 0.25 * uppx) center = glyfTop;
+//			else if(!stems[j].hasGlyphStemAbove && center > glyfTop - 2 * uppx) center = glyfTop - uppx;
+			if(atGlyphBottom(stems[j]) && center < glyfBottom + w + 0.75 * uppx) center = glyfBottom + w;
+//			else if(!stems[j].hasGlyphStemBelow && center < glyfBottom + w + 2 * uppx) center = glyfBottom + w + uppx;
 			center = xclamp(center, low, high);
 			
-			var ablationCoeff = !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
+			var ablationCoeff = atGlyphTop(stems[j]) || atGlyphBottom(stems[j]) ? ABLATION_GLYPH_HARD_EDGE
+			                  : !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
 			                  : !stems[j].hasSameRadicalStemAbove || !stems[j].hasSameRadicalStemBelow ? ABLATION_RADICAL_EDGE : ABLATION_IN_RADICAL;
 			avaliables[j] = {
 				low: Math.round(low / uppx),
@@ -592,14 +601,14 @@ function autohint(glyph, ppem, strategy) {
 
 	function initStemTouches(stems, radicals) {
 		for(var j = 0; j < stems.length; j++) {
-			var w = Math.round(calculateWidth(stems[j].width) / uppx) * uppx;
+			var w = calculateWidth(stems[j].width);
 			stems[j].touchwidth = uppx;
 			stems[j].alignTo = null;
 			roundDownStem(stems[j])
 			if(stems[j].ytouch - roundUp(w) < glyfBottom){
-				roundUpStem(stems[j])
+				stems[j].ytouch += uppx;
 			} else if(!atGlyphBottom(stems[j]) && stems[j].ytouch - roundUp(w) <= glyfBottom) {
-				roundUpStem(stems[j])
+				stems[j].ytouch += uppx;
 			}
 		}
 	}
@@ -638,13 +647,20 @@ function autohint(glyph, ppem, strategy) {
 		}
 		return true;
 	}
+	function canBeAdjustedDown(stems, transitions, k, distance){
+		for(var j = 0; j < k; j++){
+			if(transitions[k][j] && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth <= distance)
+				return false
+		}
+		return true;
+	}
 
 	function adjustDownward(stems, transitions, k, bottom){
 		var s = spaceBelow(stems, transitions, k, bottom);
-		if(s >= 2 * uppx || s < 0.3 * uppx) {
+		if(s >= 1.8 * uppx) {
 			// There is enough space below stem k, just bring it downward
-			if(stems[k].roundMethod === 1 && stems[k].ytouch > bottom) {
-				roundDownStem(stems[k]);
+			if(stems[k].ytouch > Math.max(bottom, avaliables[k].low * uppx)) {
+				stems[k].ytouch -= uppx;
 				return true;
 			}
 		}
@@ -669,7 +685,7 @@ function autohint(glyph, ppem, strategy) {
 			if(!stems[j].hasRadicalPointBelow && !stems[j].hasGlyphStemBelow && stems[j].roundMethod === -1 && stems[j].ytouch === ytouchmin0 && stems[j].yori - stems[j].touchwidth >= -blueFuzz
 				&& stems[j].yori - stems[j].ytouch >= 0.5 * uppx) {
 				ytouchmin = ytouchmin0 + uppx;
-				roundUpStem(stems[j])
+				stems[j].ytouch += uppx;
 			}
 		}
 		// Avoid stem merging at the bottom
@@ -682,18 +698,18 @@ function autohint(glyph, ppem, strategy) {
 		for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove) {
 			var stem = stems[j]
 			if(atGlyphTop(stem)) {
-				var canAdjustUpToGlyphTop = stem.ytouch < glyfTop - blueFuzz && stem.ytouch >= glyfTop - uppx - 1;
-				if(stem.roundMethod === -1 && stem.ytouch < glyfTop - blueFuzz && stem.yori - stem.ytouch >= 0.47 * uppx) {
+				var canAdjustUpToGlyphTop = stem.ytouch < Math.min(avaliables[j].high * uppx, glyfTop - blueFuzz) && stem.ytouch >= glyfTop - uppx - 1;
+				if(canAdjustUpToGlyphTop && stem.yori - stem.ytouch >= 0.47 * uppx) {
 					// Rounding-related upward adjustment
-					roundUpStem(stem);
+					stem.ytouch += uppx
 				} else if(canAdjustUpToGlyphTop && shouldAddGlyphHeight(stem, ppem, glyfTop, glyfBottom)) {
 					// Strategy-based upward adjustment
-					roundUpStem(stem);
+					stem.ytouch += uppx
 				};
 				stem.allowMoveUpward = stem.ytouch < glyfTop - blueFuzz;
 			} else {
 				if(stem.ytouch < glyfTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx){
-					roundUpStem(stem);
+					stem.ytouch += uppx
 				}
 				stem.allowMoveUpward = stem.ytouch < glyfTop - uppx - blueFuzz
 			}
@@ -705,7 +721,7 @@ function autohint(glyph, ppem, strategy) {
 		// Step 1: Uncollide
 		// We will perform stem movement using greedy method
 		// Not always works but okay for most characters
-		for(var j = 0; j < stems.length; j++){
+		for(var j = 0; j < stems.length; j++) {
 			if(stems[j].ytouch <= ytouchmin) { 
 				// Stems[j] is a bottom stem
 				// DON'T MOVE IT
@@ -719,8 +735,8 @@ function autohint(glyph, ppem, strategy) {
 					} 
 					var r = adjustDownward(stems, transitions, k, ytouchmin)
 					if(r) continue;
-					if(stems[j].roundMethod === -1 && stems[j].allowMoveUpward) {
-						roundUpStem(stems[j]);
+					if(stems[j].ytouch < avaliables[j].high * uppx && stems[j].allowMoveUpward) {
+						stems[j].ytouch += uppx;
 						break;
 					}
 				}
@@ -733,21 +749,24 @@ function autohint(glyph, ppem, strategy) {
 					} 
 					var r = adjustDownward(stems, transitions, k, ytouchmin);
 					if(r) continue;
-					if(!stems[j].atGlyphTop && stems[j].roundMethod === -1 && stems[j].ytouch < glyfTop - blueFuzz) {
-						roundUpStem(stems[j]);
+					if(!stems[j].atGlyphTop && stems[j].ytouch < avaliables[j].high * uppx && stems[j].ytouch < glyfTop - blueFuzz) {
+						stems[j].ytouch += uppx;
 						break;
 					}
 				}
 			}
 		};
+	};
 
-		// Step 2: Rebalance
+	function rebalance(stems){
 		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
 			if(canBeAdjustedUp(stems, transitions, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
-				if(stems[j].roundMethod === -1) { roundUpStem(stems[j]) }
+				if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
+			} else if(canBeAdjustedDown(stems, transitions, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
+				if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
 			}
-		};
-	};
+		};		
+	}
 
 	function potential(y, A, C, S, avaliables) {
 		var p = 0;
@@ -773,17 +792,24 @@ function autohint(glyph, ppem, strategy) {
 	}
 
 	function evolve(population) {
-		var children = population.slice(ELITE_COUNT);
-		for(var c = ELITE_COUNT; c < CHILDREN_LIMIT; c++) {
-			var father = population[Math.floor(Math.random() * POPULATION_LIMIT)].gene;
-			var mother = population[Math.floor(Math.random() * POPULATION_LIMIT)].gene;
+		var children = [];
+		for(var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
+			var father = population[Math.floor(Math.random() * population.length)].gene;
+			var mother = population[Math.floor(Math.random() * population.length)].gene;
 			var y1 = father.slice(0);
 			for(var j = 0; j < father.length; j++) if(Math.random() > 0.5) y1[j] = mother[j]
 			if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
 			children[c] = new Entity(y1)
 		};
-		children = children.sort(byPotential);
-		return children.slice(0, POPULATION_LIMIT);
+		var p1 = population.concat(children).sort(byPotential);
+		var p = p1.slice(0, ELITE_COUNT)
+		var index = ELITE_COUNT;
+		for(var j = ELITE_COUNT; j < POPULATION_LIMIT; j++) {
+			if(Math.random() < 0.1) index += 1;
+			if(index >= p1.length) break;
+			p[j] = p1[index++]
+		};
+		return p;
 	}
 	// Collision resolving
 	function uncollide(stems){
@@ -797,11 +823,13 @@ function autohint(glyph, ppem, strategy) {
 		var y0 = stems.map(function(s, j){ return xclamp(Math.round(stems[j].ytouch / uppx), avaliables[j].low, avaliables[j].high) });
 
 		var population = [new Entity(y0)];
-		for(var j = 1; j < POPULATION_LIMIT; j++){
-			var y1 = y0.slice(0);
-			mutant(y1);
-			population[j] = new Entity(y1)
-		};
+		for(var j = 0; j < n; j++){
+			for(var k = avaliables[j].low; k <= avaliables[j].high; k++) if(k !== y0[j]) {
+				var y1 = y0.slice(0);
+				y1[j] = k;
+				population.push(new Entity(y1));
+			}
+		}
 
 		for(var s = 0; s < EVOLUTION_STAGES; s++) population = evolve(population)
 
@@ -819,13 +847,14 @@ function autohint(glyph, ppem, strategy) {
 		for(var j = stems.length - 1; j >= 0; j--) {
 			var sb = spaceBelow(stems, transitions, j, ytouchmin + uppx * 3);
 			var sa = spaceAbove(stems, transitions, j, ytouchmax + uppx * 3);
-			var w = Math.round(Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width)) / uppx) * uppx;
-			if(w <= uppx) continue;
+			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width));
+			var w = round(wr);
+			if(w < uppx + 1) continue;
 			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > glyfBottom || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= glyfBottom - 1)) {
-				stems[j].touchwidth = w;
-			} else if (sa > 1.6 * uppx && stems[j].roundMethod === -1 && stems[j].ytouch - w + uppx >= glyfBottom - 1 && stems[j].ytouch < glyfTop - uppx) {
+				stems[j].touchwidth = wr;
+			} else if (sa > 1.6 * uppx && stems[j].ytouch < avaliables[j].high * uppx && stems[j].ytouch - w + uppx >= glyfBottom - 1 && stems[j].ytouch < glyfTop - uppx) {
 				stems[j].ytouch += uppx;
-				stems[j].touchwidth = w;
+				stems[j].touchwidth = wr;
 			}
 		}
 	}
@@ -859,9 +888,12 @@ function autohint(glyph, ppem, strategy) {
 				if(p === 0) {
 					stem.low[k][p].ytouch = stem.ytouch - w;
 					stem.low[k][p].touched = true;
-					stem.low[k][p].keypoint = true;
 					if(k === 0) {
-						bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.touchwidth / uppx]
+						if(stem.touchwidth === round(stem.width)) {
+							stem.touchwidth = stem.width;
+							bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0]]
+						}
+						else bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.touchwidth / uppx]
 					} else {
 						bottomaligns.push(['ALIGN0', stem.low[0][0], stem.low[k][0]])
 					}
@@ -869,7 +901,7 @@ function autohint(glyph, ppem, strategy) {
 					stem.low[k][p].donttouch = true;
 				}
 			}
-			instructions[topkey[0] === 'ALIGN0' ? 'alignedStems' : 'roundingStems'].push({
+			instructions.roundingStems.push({
 				topkey: topkey,
 				bottomkey: bottomkey,
 				topaligns: topaligns,
@@ -908,27 +940,27 @@ function autohint(glyph, ppem, strategy) {
 	}
 	function interpolatedUntouchedTopBottomPoints(contours){
 		var touchedPoints = [];
-		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) if(contours[j].points[k].touched && contours[j].points.keypoint) {
-			touchedPoints.push(contours[j].points[k]);
+		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
+			if(contours[j].points[k].touched && contours[j].points[k].keypoint) {
+				touchedPoints.push(contours[j].points[k]);
+			}
 		}
-		touchedPoints = touchedPoints.sort(function(p, q){ return p.yori - q.yori })
-		out: for(var j = 0; j < contours.length; j++) { 
-			var localtopp = null, localbottomp = null;
+		touchedPoints = touchedPoints.sort(function(p, q){ return p.yori - q.yori });
+
+		for(var j = 0; j < contours.length; j++) {
+			var contourExtrema = [];
 			for(var k = 0; k < contours[j].points.length; k++) {
-				var point = contours[j].points[k];
-				if(!localtopp || point.yori > localtopp.yori) localtopp = point;
-				if(!localbottomp || point.yori < localbottomp.yori) localbottomp = point;
-			}
-			if(!localtopp.touched && !localtopp.donttouch) for(var k = 1; k < touchedPoints.length; k++) {
-				if(touchedPoints[k].yori > localtopp.yori && touchedPoints[k - 1].yori <= localtopp.yori) {
-					interpolate(touchedPoints[k], touchedPoints[k - 1], localtopp, true);
-					break;
+				var point = contours[j].points[k]
+				if(point.yExtrema && !point.touched) {
+					contourExtrema.push(point);
 				}
-			}
-			if(!localbottomp.touched && !localbottomp.donttouch) for(var k = 1; k < touchedPoints.length; k++) {
-				if(touchedPoints[k].yori > localbottomp.yori && touchedPoints[k - 1].yori <= localbottomp.yori) {
-					interpolate(touchedPoints[k], touchedPoints[k - 1], localbottomp, true);
-					break;
+			};
+			for(var k = 0; k < contourExtrema.length; k++) {
+				for(var m = 1; m < touchedPoints.length; m++) {
+					if(touchedPoints[m].yori > contourExtrema[k].yori && touchedPoints[m - 1].yori <= contourExtrema[k].yori) {
+						interpolate(touchedPoints[m - 1], touchedPoints[m], contourExtrema[k], true);
+						break;
+					}
 				}
 			}
 		}
@@ -972,12 +1004,11 @@ function autohint(glyph, ppem, strategy) {
 	untouchAll(contours);
 	initStemTouches(stems, glyph.radicals);
 	earlyUncollide(stems);
+	rebalance(stems);
 	uncollide(stems);
+	rebalance(stems);
 	allocateWidth(stems);
 	touchStemPoints(stems);
-	touchBlueZonePoints(contours);
-	interpolatedUntouchedTopBottomPoints(contours);
-	IUPy(contours);
 	touchBlueZonePoints(contours);
 	interpolatedUntouchedTopBottomPoints(contours);
 	IUPy(contours);
