@@ -27,3 +27,4 @@ node_modules
 # Special
 *.sfd
 *.ttf
+test/
