@@ -24,6 +24,8 @@ function findStems(glyph, strategy) {
 	var COEFF_S = strategy.COEFF_S || 10000;
 	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -40;
 
+	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
+
 	function overlapInfo(a, b){ 
 		var events = []
 		for(var j = 0; j < a.length; j++){
@@ -72,17 +74,11 @@ function findStems(glyph, strategy) {
 	function enoughOverlapBetweenSegments(a, b, ratio){
 		return overlapRatio(a, b) >= ratio
 	}
-	function enoughOverlapBetweenStems(a, b){
-		return enoughOverlapBetweenSegments(a.low, b.low, MIN_STEM_OVERLAP_RATIO) 
-			|| enoughOverlapBetweenSegments(a.high, b.high, MIN_STEM_OVERLAP_RATIO) 
-			|| enoughOverlapBetweenSegments(a.low, b.high, MIN_STEM_OVERLAP_RATIO) 
-			|| enoughOverlapBetweenSegments(a.high, b.low, MIN_STEM_OVERLAP_RATIO)
-	}
-	function stemOverlapLength(a, b){
+	function stemOverlapRatio(a, b){
 		return Math.max(overlapRatio(a.low, b.low), overlapRatio(a.high, b.low), overlapRatio(a.low, b.high), overlapRatio(a.high, b.high))
 	}
 
-	function calculateCollisionMatrices(stems) {
+	function calculateCollisionMatrices(stems, overlaps) {
 		var A = [], C = [], S = [], n = stems.length;
 		for(var j = 0; j < n; j++){
 			A[j] = [];
@@ -94,7 +90,7 @@ function findStems(glyph, strategy) {
 		};
 		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
-				var ovr = stemOverlapLength(stems[j], stems[k]);
+				var ovr = overlaps[j][k];
 				var coeffA = 1;
 				if(stems[j].belongRadical === stems[k].belongRadical) {
 					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
@@ -259,7 +255,7 @@ function findStems(glyph, strategy) {
 	function pointBelowLine(point, y, xmin, xmax){
 		return point.yori < y - blueFuzz && point.xori < xmax && point.xori > xmin
 	}
-	function getRadicalPointRelationships(stem, radical){
+	function analyzePointToStemSpatialRelationships(stem, radical){
 		var a0 = stem.low[0][0].xori, az = stem.low[stem.low.length - 1][stem.low[stem.low.length - 1].length - 1].xori
 		var b0 = stem.high[0][0].xori, bz = stem.high[stem.high.length - 1][stem.high[stem.high.length - 1].length - 1].xori
 		var xmin = Math.min(a0, b0, az, bz), xmax = Math.max(a0, b0, az, bz);
@@ -311,7 +307,6 @@ function findStems(glyph, strategy) {
 						stem.high = segs[k];
 						stem.yori = stem.high[0][0].yori;
 						stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
-						getRadicalPointRelationships(stem, radicals[r]);
 						stem.atGlyphTop = stem.high[0][0].yori >= stats.ymax - blueFuzz;
 						stem.atGlyphBottom = stem.high[0][0].yori - stem.width <= stats.ymin + blueFuzz;
 						stem.belongRadical = radicals[r];
@@ -321,46 +316,44 @@ function findStems(glyph, strategy) {
 					break;
 				}
 			};
-
-			for(var k = 0; k < radicalStems.length; k++) {
-				for(var j = 0; j < radicalStems.length; j++) {
-					if(enoughOverlapBetweenStems(radicalStems[j], radicalStems[k]) && radicalStems[j].yori > radicalStems[k].yori) {
-						radicalStems[k].hasSameRadicalStemAbove = radicalStems[k].hasGlyphStemAbove = true;
-						radicalStems[j].hasSameRadicalStemBelow = radicalStems[j].hasGlyphStemBelow = true;
-					}
-				}
-			}
 			stems = stems.concat(radicalStems)
 			radicals[r].stems = radicalStems;
 		}
+		return stems.sort(function(a, b){ return a.yori - b.yori });
+	};
+	function analyzeStemSpatialRelationships(stems, overlaps) {
 		for(var k = 0; k < stems.length; k++) {
+			analyzePointToStemSpatialRelationships(stems[k], stems[k].belongRadical);
 			for(var j = 0; j < stems.length; j++) {
-				if(enoughOverlapBetweenStems(stems[j], stems[k]) && stems[j].yori > stems[k].yori) {
+				if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && stems[j].yori > stems[k].yori) {
 					stems[k].hasGlyphStemAbove = true;
 					stems[j].hasGlyphStemBelow = true;
+					if(stems[j].belongRadical === stems[k].belongRadical) {
+						stems[j].hasSameRadicalStemBelow = true;
+						stems[k].hasSameRadicalStemAbove = true;
+					}
 				}
 			}
 		}
-		return stems.sort(function(a, b){ return a.yori - b.yori });
 	};
-	var radicals = findRadicals(glyph.contours);
-	var stats = statGlyph(glyph.contours);
+
+
+	var radicals = glyph.radicals = findRadicals(glyph.contours);
+	var stats = glyph.stats = statGlyph(glyph.contours);
 	findHorizontalSegments(radicals);
-	var stems = stemSegments(radicals);
-	glyph.radicals = radicals;
-	glyph.stems = stems;
-	glyph.collisionMatrices = calculateCollisionMatrices(stems);
-	glyph.stemTransitions = (function(){
+	var stems = glyph.stems = stemSegments(radicals);
+	var overlaps = glyph.stemOverlaps = (function(){
 		var transitions = [];
 		for(var j = 0; j < stems.length; j++){
 			transitions[j] = []
 			for(var k = 0; k < stems.length; k++){
-				transitions[j][k] = enoughOverlapBetweenStems(stems[j], stems[k])
+				transitions[j][k] = stemOverlapRatio(stems[j], stems[k])
 			}
 		};
 		return transitions
 	})();
-	glyph.stats = stats;
+	analyzeStemSpatialRelationships(stems, overlaps);
+	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps);
 	return glyph;
 }
 

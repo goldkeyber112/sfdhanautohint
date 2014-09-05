@@ -20,20 +20,21 @@ function pushargs(tt){
 	}
 };
 
-function roundingStemInstrs(glyph, ppem, actions, cvt){
+function roundingStemInstrs(glyph, upm, ppem, actions, cvt){
 	var tt = [];
 	var args = [];
 	var movements = [];
 	for(var k = 0; k < actions.length; k++){
 		if(actions[k].bottomkey.length > 3) {
-			var sw = -((actions[k].bottomkey[3] | 0) * 64);
-			var cvtj = cvt.indexOf(sw)
+			var cvtwidth = -Math.round(upm / ppem * (actions[k].bottomkey[3] | 0));
+			var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
+			var cvtj = cvt.indexOf(cvtwidth)
 			if(cvtj >= 0) {
 				args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
 				movements.push('MIRP[0]', 'MDAP[rnd]');
 			} else {
-				args.push(actions[k].bottomkey[2].id, sw, actions[k].topkey[1].id);
-				movements.push('MIRP[0]', 'MDAP[rnd]');
+				args.push(actions[k].bottomkey[2].id, msirpwidth, actions[k].topkey[1].id);
+				movements.push('MSIRP[0]', 'MDAP[rnd]');
 			}
 		} else {
 			args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
@@ -143,7 +144,7 @@ function instruct(input, strategy, cvt) {
 				tt.push('SLOOP', 'SHPIX')
 			}
 		}
-		tt = tt.concat(roundingStemInstrs(glyph, ppem, instrs.roundingStems, cvt));
+		tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt));
 		tt.push('EIF');
 	};
 	// Interpolations

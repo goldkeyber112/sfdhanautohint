@@ -19,6 +19,7 @@ function hint(glyph, ppem, strategy) {
 	var WIDTH_FACTOR_X = strategy.WIDTH_FACTOR_X || 2;
 	var MIN_ADJUST_PPEM = strategy.MIN_ADJUST_PPEM || 16;
 	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
+	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
 	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 2;
 	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 4;
@@ -149,49 +150,49 @@ function hint(glyph, ppem, strategy) {
 	}
 	var COLLISION_FUZZ = 1.04;
 	var HIGHLY_COLLISION_FUZZ = 0.3;
-	function collideWith(stems, transitions, j, k){
-		return transitions[j][k] && (stems[j].ytouch > stems[k].ytouch 
+	function collideWith(stems, overlaps, j, k){
+		return overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && (stems[j].ytouch > stems[k].ytouch 
 			? stems[j].ytouch - stems[k].ytouch <= stems[j].touchwidth * COLLISION_FUZZ 
 			: stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth * COLLISION_FUZZ)
 	}
-	function highlyCollideWith(stems, transitions, j, k){
-		return transitions[j][k] && (stems[j].ytouch > stems[k].ytouch 
+	function highlyCollideWith(stems, overlaps, j, k){
+		return overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && (stems[j].ytouch > stems[k].ytouch 
 			? stems[j].ytouch - stems[k].ytouch <= stems[j].touchwidth * HIGHLY_COLLISION_FUZZ 
 			: stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth * HIGHLY_COLLISION_FUZZ)
 	}
-	function spaceBelow(stems, transitions, k, bottom){
+	function spaceBelow(stems, overlaps, k, bottom){
 		var space = stems[k].ytouch - stems[k].touchwidth + bottom;
 		for(var j = k - 1; j >= 0; j--){
-			if(transitions[j][k] && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth < space)
+			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth < space)
 				space = stems[k].ytouch - stems[j].ytouch - stems[k].touchwidth
 		}
 		return space;
 	}
-	function spaceAbove(stems, transitions, k, top){
+	function spaceAbove(stems, overlaps, k, top){
 		var space = top - stems[k].ytouch;
 		for(var j = k + 1; j < stems.length; j++){
-			if(transitions[k][j] && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth < space)
+			if(overlaps[k][j] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth < space)
 				space = stems[j].ytouch - stems[k].ytouch - stems[j].touchwidth
 		}
 		return space;
 	}
-	function canBeAdjustedUp(stems, transitions, k, distance){
+	function canBeAdjustedUp(stems, overlaps, k, distance){
 		for(var j = k + 1; j < stems.length; j++){
-			if(transitions[j][k] && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth <= distance)
+			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth <= distance)
 				return false
 		}
 		return true;
 	}
-	function canBeAdjustedDown(stems, transitions, k, distance){
+	function canBeAdjustedDown(stems, overlaps, k, distance){
 		for(var j = 0; j < k; j++){
-			if(transitions[k][j] && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth <= distance)
+			if(overlaps[k][j] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth <= distance)
 				return false
 		}
 		return true;
 	}
 
-	function adjustDownward(stems, transitions, k, bottom){
-		var s = spaceBelow(stems, transitions, k, bottom);
+	function adjustDownward(stems, overlaps, k, bottom){
+		var s = spaceBelow(stems, overlaps, k, bottom);
 		if(s >= 1.8 * uppx) {
 			// There is enough space below stem k, just bring it downward
 			if(stems[k].ytouch > Math.max(bottom, avaliables[k].low * uppx)) {
@@ -200,11 +201,11 @@ function hint(glyph, ppem, strategy) {
 			}
 		}
 		for(var j = 0; j < k; j++){
-			if(!adjustDownward(stems, transitions, j, bottom)) return false;
+			if(!adjustDownward(stems, overlaps, j, bottom)) return false;
 		}
 		return false;
 	}
-	var transitions = glyph.stemTransitions;
+	var overlaps = glyph.stemOverlaps;
 	// Collision resolving
 	function earlyUncollide(stems){
 		// In this procedure we move some segment stems to resolve collisions between them.
@@ -225,7 +226,7 @@ function hint(glyph, ppem, strategy) {
 		}
 		// Avoid stem merging at the bottom
 		for(var j = 0; j < stems.length; j++) if(stems[j].ytouch === ytouchmin) for(var k = 0; k < j; k++) {
-			if(transitions[j][k] && stems[j].roundMethod === -1) roundUpStem(stems[j]);
+			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && stems[j].roundMethod === -1) roundUpStem(stems[j]);
 		}
 
 		// Step 0b : Adjust top stems
@@ -263,12 +264,12 @@ function hint(glyph, ppem, strategy) {
 			} else if(stems[j].ytouch >= ytouchmax) {
 				// Stems[j] is a top stem
 				// It should not be moved, but we can uncollide stems below it.
-				for(var k = j - 1; k >= 0; k--) if(collideWith(stems, transitions, j, k)) {
-					if(highlyCollideWith(stems, transitions, j, k)) {
+				for(var k = j - 1; k >= 0; k--) if(collideWith(stems, overlaps, j, k)) {
+					if(highlyCollideWith(stems, overlaps, j, k)) {
 						alignStem(stems[k], stems[j])
 						continue
 					} 
-					var r = adjustDownward(stems, transitions, k, ytouchmin)
+					var r = adjustDownward(stems, overlaps, k, ytouchmin)
 					if(r) continue;
 					if(stems[j].ytouch < avaliables[j].high * uppx && stems[j].allowMoveUpward) {
 						stems[j].ytouch += uppx;
@@ -277,12 +278,12 @@ function hint(glyph, ppem, strategy) {
 				}
 			} else {
 				// Stems[j] is a middle stem
-				for(var k = j - 1; k >= 0; k--) if(collideWith(stems, transitions, j, k)) {
-					if(highlyCollideWith(stems, transitions, j, k)) {
+				for(var k = j - 1; k >= 0; k--) if(collideWith(stems, overlaps, j, k)) {
+					if(highlyCollideWith(stems, overlaps, j, k)) {
 						alignStem(stems[j], stems[k])
 						break;
 					} 
-					var r = adjustDownward(stems, transitions, k, ytouchmin);
+					var r = adjustDownward(stems, overlaps, k, ytouchmin);
 					if(r) continue;
 					if(!stems[j].atGlyphTop && stems[j].ytouch < avaliables[j].high * uppx && stems[j].ytouch < pixelTop - blueFuzz) {
 						stems[j].ytouch += uppx;
@@ -295,9 +296,9 @@ function hint(glyph, ppem, strategy) {
 
 	function rebalance(stems){
 		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
-			if(canBeAdjustedUp(stems, transitions, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch >= 0.6 * uppx) {
+			if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch >= 0.6 * uppx) {
 				if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
-			} else if(canBeAdjustedDown(stems, transitions, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori >= 0.6 * uppx) {
+			} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori >= 0.6 * uppx) {
 				if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
 			}
 		};		
@@ -389,8 +390,8 @@ function hint(glyph, ppem, strategy) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
 		for(var j = stems.length - 1; j >= 0; j--) {
-			var sb = spaceBelow(stems, transitions, j, ytouchmin + uppx * 3);
-			var sa = spaceAbove(stems, transitions, j, ytouchmax + uppx * 3);
+			var sb = spaceBelow(stems, overlaps, j, ytouchmin + uppx * 3);
+			var sa = spaceAbove(stems, overlaps, j, ytouchmax + uppx * 3);
 			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width));
 			var w = round(wr);
 			if(w < uppx + 1) continue;
