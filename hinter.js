@@ -27,6 +27,10 @@ function hint(glyph, ppem, strategy) {
 	
 	var COEFF_PORPORTION_DISTORTION = strategy.COEFF_PORPORTION_DISTORTION || 3;
 
+	var BLUEZONE_BOTTOM_CENTER = (strategy.BLUEZONE_BOTTOM_CENTER || -75) / 1000 * upm;
+	var BLUEZONE_TOP_CENTER = (strategy.BLUEZONE_TOP_CENTER || 840) / 1000 * upm;
+	var BLUEZONE_BOTTOM_LIMIT = (strategy.BLUEZONE_BOTTOM_LIMIT || -65) / 1000 * upm;
+	var BLUEZONE_TOP_LIMIT = (strategy.BLUEZONE_TOP_LIMIT || 825) / 1000 * upm;
 
 
 	var shouldAddGlyphHeight = strategy.shouldAddGlyphHeight || function(stem, ppem, pixelTop, pixelBottom) {
@@ -40,8 +44,8 @@ function hint(glyph, ppem, strategy) {
 	var stems = glyph.stems.sort(byyori);
 
 	var uppx = upm / ppem;
-	var pixelBottom = -round(0.075 * upm);
-	var pixelTop = round(0.84 * upm);
+	var pixelBottom = -round(-BLUEZONE_BOTTOM_CENTER);
+	var pixelTop = round(BLUEZONE_TOP_CENTER);
 	var glyfBottom = Math.max(round(glyph.stats.ymin), pixelBottom);
 	var glyfTop = Math.min(round(glyph.stats.ymax), pixelTop);
 
@@ -454,13 +458,13 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < contours.length; j++) {
 			for(var k = 0; k < contours[j].points.length - 1; k++){
 				var point = contours[j].points[k];
-				if(point.ytouch <= -65 && point.yExtrema){
+				if(point.ytouch <= BLUEZONE_BOTTOM_LIMIT && point.yExtrema){
 					point.touched = true;
 					point.ytouch = pixelBottom;
 					point.keypoint = true;
 					instructions.blueZoneAlignments.push(['BLUEBOTTOM', point, pixelTop])
 				}
-				if(point.ytouch >= 825 && point.yExtrema){
+				if(point.ytouch >= BLUEZONE_TOP_LIMIT && point.yExtrema){
 					point.touched = true;
 					point.ytouch = pixelTop;
 					point.keypoint = true;

@@ -86,9 +86,12 @@ function instruct(input, strategy, cvt) {
 	var PPEM_MIN = strategy.PPEM_MIN;
 	var PPEM_MAX = strategy.PPEM_MAX;
 
+	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER);
+	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER);
+
 	var glyph = findStems(parseSFD(input), strategy);
 	if(!glyph.stems.length) return;
-	var tt = ['SVTCA[y-axis]']
+	var tt = ['SVTCA[y-axis]'];
 
 	// Hint for bluezone alignments
 	var h0 = hint(glyph, upm, strategy).instructions;
@@ -100,11 +103,11 @@ function instruct(input, strategy, cvt) {
 		}
 		tt.push('RTG');
 		for(var k = 0; k < bluetops.length; k++){
-			pushargs(tt, [bluetops[k].id, 1]);
+			pushargs(tt, [bluetops[k].id, cvtTopID]);
 			tt.push('MIAP[rnd]');
 		}
 		for(var k = 0; k < bluebottoms.length; k++){
-			pushargs(tt, [bluebottoms[k].id, 2]);
+			pushargs(tt, [bluebottoms[k].id, cvtBottomID]);
 			tt.push('MIAP[rnd]');
 		}
 	}

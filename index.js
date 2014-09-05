@@ -18,12 +18,14 @@ var strategy = {
 	STEM_SIDE_MIN_DESCENT: 60,
 	PPEM_MIN: 10,
 	PPEM_MAX: 36,
+	BLUEZONE_TOP_CENTER: 840,
+	BLUEZONE_BOTTOM_CENTER: -75,
 	UPM: 1000
 }
 
 var MAX_SW = 4;
 
-var cvt = [0, 840, -75];
+var cvt = [0, strategy.BLUEZONE_TOP_CENTER, strategy.BLUEZONE_BOTTOM_CENTER];
 for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
 	for(var w = 1; w <= MAX_SW; w++){
 		cvt.push(-Math.round(strategy.UPM / ppem * w))
