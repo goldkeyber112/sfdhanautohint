@@ -9,8 +9,8 @@ function hint(glyph, ppem, strategy) {
 	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
 
 	var POPULATION_LIMIT = strategy.POPULATION_LIMIT || 200;
-	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 50;
-	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 10;
+	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 100;
+	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 15;
 	var MUTANT_PROBABLITY = strategy.MUTANT_PROBABLITY || 0.4;
 	var ELITE_COUNT = strategy.ELITE_COUNT || 10;
 
@@ -21,12 +21,12 @@ function hint(glyph, ppem, strategy) {
 	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
-	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 2;
-	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 4;
+	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 1;
+	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 2;
 	var ABLATION_GLYPH_EDGE = strategy.ABLATION_GLYPH_EDGE || 15;
 	var ABLATION_GLYPH_HARD_EDGE = strategy.ABLATION_GLYPH_HARD_EDGE || 25;
 	
-	var COEFF_PORPORTION_DISTORTION = strategy.COEFF_PORPORTION_DISTORTION || 3;
+	var COEFF_PORPORTION_DISTORTION = strategy.COEFF_PORPORTION_DISTORTION || 4;
 
 	var BLUEZONE_BOTTOM_CENTER = (strategy.BLUEZONE_BOTTOM_CENTER || -75) / 1000 * upm;
 	var BLUEZONE_TOP_CENTER = (strategy.BLUEZONE_TOP_CENTER || 840) / 1000 * upm;
@@ -254,7 +254,7 @@ function hint(glyph, ppem, strategy) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
 
-		// Step 1: Uncollide
+		// Step 1: Early Uncollide
 		// We will perform stem movement using greedy method
 		// Not always works but okay for most characters
 		for(var j = 0; j < stems.length; j++) {
@@ -401,7 +401,7 @@ function hint(glyph, ppem, strategy) {
 				stems[j].ytouch += uppx;
 				stems[j].touchwidth = wr;
 			}
-		}
+		};
 	};
 	var instructions = {
 		roundingStems : [],
@@ -434,7 +434,7 @@ function hint(glyph, ppem, strategy) {
 					stem.low[k][p].ytouch = stem.ytouch - w;
 					stem.low[k][p].touched = true;
 					if(k === 0) {
-						if(stem.touchwidth >= round(stem.width)) {
+						if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= uppx) {
 							stem.touchwidth = stem.width;
 							bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0]]
 						}
@@ -549,7 +549,7 @@ function hint(glyph, ppem, strategy) {
 	untouchAll(contours);
 	initStemTouches(stems, glyph.radicals);
 	earlyUncollide(stems);
-	rebalance(stems);
+//	rebalance(stems);
 	uncollide(stems);
 	rebalance(stems);
 	allocateWidth(stems);

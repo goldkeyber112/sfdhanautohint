@@ -7,8 +7,8 @@ function findStems(glyph, strategy) {
 	
 	var upm = strategy.UPM || 1000;
 
-	var MIN_STEM_WIDTH = strategy.MIN_STEM_WIDTH;
-	var MAX_STEM_WIDTH = strategy.MAX_STEM_WIDTH;
+	var MIN_STEM_WIDTH = strategy.MIN_STEM_WIDTH || 20;
+	var MAX_STEM_WIDTH = strategy.MAX_STEM_WIDTH || 120;
 	var STEM_SIDE_MIN_RISE = strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
 	var STEM_CENTER_MIN_RISE = strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
 	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;

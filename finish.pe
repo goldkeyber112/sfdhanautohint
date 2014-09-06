@@ -1,12 +1,15 @@
 Open($1);
-Print("Hinting Non-CJK")
-SelectNone()
-SelectMore(UCodePoint(0x2e80), UCodePoint(0x2fff))
-SelectMore(UCodePoint(0x3300), UCodePoint(0x9fff))
-SelectMore(UCodePoint(0x20000), UCodePoint(0x2ffff))
-SelectInvert()
-AutoHint()
-ClearHints("Vertical")
-AutoInstr()
-Print("Generating")
-Generate($1:r + ".ttf")
+Print("Hinting Non-CJK");
+SelectNone();
+SelectMoreIf(UCodePoint(0x2e80), UCodePoint(0x2fff));
+SelectMoreIf(UCodePoint(0x3192), UCodePoint(0x319f));
+SelectMoreIf(UCodePoint(0x3220), UCodePoint(0x324f));
+SelectMoreIf(UCodePoint(0x3300), UCodePoint(0x9fff));
+SelectMoreIf(UCodePoint(0xf900), UCodePoint(0xfa6f));
+SelectMoreIf(UCodePoint(0x20000), UCodePoint(0x2ffff));
+SelectInvert();
+AutoHint();
+ClearHints("Vertical");
+AutoInstr();
+Print("Generating");
+Generate($1:r + ".ttf");
