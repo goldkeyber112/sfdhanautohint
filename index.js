@@ -55,11 +55,16 @@ for(var prop in strategy) {
 	}
 };
 
-var MAX_SW = 4;
+var MAX_SW = 3;
 var cvt = [0, strategy.BLUEZONE_TOP_CENTER, strategy.BLUEZONE_BOTTOM_CENTER];
 for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
 	for(var w = 1; w <= MAX_SW; w++){
 		cvt.push(-Math.round(strategy.UPM / ppem * w))
+	}
+};
+for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
+	for(var w = 1; w <= MAX_SW; w++){
+		cvt.push(Math.round(strategy.UPM / ppem * w))
 	}
 };
 

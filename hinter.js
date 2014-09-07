@@ -419,9 +419,9 @@ function hint(glyph, ppem, strategy) {
 				if(p === 0) {
 					stem.high[k][p].ytouch = stem.ytouch
 					stem.high[k][p].touched = true;
-					stem.high[k][p].keypoint = true;
 					if(k === 0) {
-						topkey = (['ROUND', stem.high[0][0], stem.yori, stem.ytouch])
+						stem.high[k][p].keypoint = true;
+						topkey = ['ROUND', stem.high[0][0], stem.high[0][0].yori, stem.ytouch]
 					} else {
 						topaligns.push(['ALIGN0', stem.high[0][0], stem.high[k][0]])
 					}
@@ -434,7 +434,12 @@ function hint(glyph, ppem, strategy) {
 					stem.low[k][p].ytouch = stem.ytouch - w;
 					stem.low[k][p].touched = true;
 					if(k === 0) {
-						if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= uppx) {
+						if(stem.touchwidth >= round(stem.width) && Math.abs(stem.ytouch - stem.touchwidth - pixelBottom) < 1 && stem.width >= uppx) {
+							stem.touchwidth = stem.width;
+							stem.low[k][p].keypoint = true;
+							topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, pixelBottom]
+							bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0]]
+						} else if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= uppx) {
 							stem.touchwidth = stem.width;
 							bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0]]
 						}
@@ -445,7 +450,7 @@ function hint(glyph, ppem, strategy) {
 				} else {
 					stem.low[k][p].donttouch = true;
 				}
-			}
+			};
 			instructions.roundingStems.push({
 				topkey: topkey,
 				bottomkey: bottomkey,
@@ -459,13 +464,13 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < contours.length; j++) {
 			for(var k = 0; k < contours[j].points.length - 1; k++){
 				var point = contours[j].points[k];
-				if(point.ytouch <= BLUEZONE_BOTTOM_LIMIT && point.yExtrema){
+				if(point.ytouch <= BLUEZONE_BOTTOM_LIMIT && point.yExtrema && !point.touched && !point.donttouch){
 					point.touched = true;
 					point.ytouch = pixelBottom;
 					point.keypoint = true;
 					instructions.blueZoneAlignments.push(['BLUEBOTTOM', point, pixelTop])
 				}
-				if(point.ytouch >= BLUEZONE_TOP_LIMIT && point.yExtrema){
+				if(point.ytouch >= BLUEZONE_TOP_LIMIT && point.yExtrema && !point.touched && !point.donttouch){
 					point.touched = true;
 					point.ytouch = pixelTop;
 					point.keypoint = true;
