@@ -21,6 +21,8 @@ function hint(glyph, ppem, strategy) {
 	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
+	var MIN_TOUCHED_STEM_WIDTH = strategy.MIN_TOUCHED_STEM_WIDTH || 1;
+
 	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 1;
 	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 2;
 	var ABLATION_GLYPH_EDGE = strategy.ABLATION_GLYPH_EDGE || 15;
@@ -81,9 +83,10 @@ function hint(glyph, ppem, strategy) {
 
 	function clamp(x){ return Math.min(1, Math.max(0, x)) }
 	function xclamp(x, low, high){ return Math.min(high, Math.max(low, x)) }
-	function calculateWidth(w){
-		if(w < uppx) return uppx;
-		else if (w < 2 * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
+	function calculateWidth(w, mstw){
+		mstw = mstw || 1;
+		if(w < mstw * uppx) return mstw * uppx;
+		else if (w < (1 + mstw) * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
 			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)));
 		else return Math.round(w / uppx) * uppx;
 	}
@@ -392,7 +395,7 @@ function hint(glyph, ppem, strategy) {
 		for(var j = stems.length - 1; j >= 0; j--) {
 			var sb = spaceBelow(stems, overlaps, j, ytouchmin + uppx * 3);
 			var sa = spaceAbove(stems, overlaps, j, ytouchmax + uppx * 3);
-			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width));
+			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH));
 			var w = round(wr);
 			if(w < uppx + 1) continue;
 			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > pixelBottom || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1)) {
