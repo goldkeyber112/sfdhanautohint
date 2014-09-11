@@ -392,16 +392,13 @@ function hint(glyph, ppem, strategy) {
 	function allocateWidth(stems) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
-		for(var j = stems.length - 1; j >= 0; j--) {
+		for(var j = 0; j < stems.length; j++) {
 			var sb = spaceBelow(stems, overlaps, j, ytouchmin + uppx * 3);
 			var sa = spaceAbove(stems, overlaps, j, ytouchmax + uppx * 3);
 			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH));
 			var w = round(wr);
 			if(w < uppx + 1) continue;
-			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > pixelBottom || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1)) {
-				stems[j].touchwidth = wr;
-			} else if (sa > 1.6 * uppx && stems[j].ytouch < avaliables[j].high * uppx && stems[j].ytouch - w + uppx >= pixelBottom - 1 && stems[j].ytouch < pixelTop - uppx) {
-				stems[j].ytouch += uppx;
+			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1)) {
 				stems[j].touchwidth = wr;
 			}
 		};
