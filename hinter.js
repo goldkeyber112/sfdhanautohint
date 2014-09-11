@@ -164,7 +164,7 @@ function hint(glyph, ppem, strategy) {
 			: stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth * HIGHLY_COLLISION_FUZZ)
 	}
 	function spaceBelow(stems, overlaps, k, bottom){
-		var space = stems[k].ytouch - stems[k].touchwidth + bottom;
+		var space = stems[k].ytouch - stems[k].touchwidth - bottom;
 		for(var j = k - 1; j >= 0; j--){
 			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth < space)
 				space = stems[k].ytouch - stems[j].ytouch - stems[k].touchwidth
@@ -392,14 +392,37 @@ function hint(glyph, ppem, strategy) {
 	function allocateWidth(stems) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
+		var allocated = [];
 		for(var j = 0; j < stems.length; j++) {
-			var sb = spaceBelow(stems, overlaps, j, ytouchmin + uppx * 3);
-			var sa = spaceAbove(stems, overlaps, j, ytouchmax + uppx * 3);
-			var wr = Math.min(stems[j].touchwidth + sa + sb - 2 * uppx, calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH));
-			var w = round(wr);
+			debugger;
+			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
+			var wr = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH);
+			var w = Math.min(round(wr), round(stems[j].touchwidth + sb - uppx));
 			if(w < uppx + 1) continue;
-			if(sb >= 1.75 * uppx && (stems[j].ytouch - w > pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1)) {
+			if(sb + stems[j].touchwidth > wr + uppx - 1 && stems[j].ytouch - wr >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - wr >= pixelBottom - 1) {
 				stems[j].touchwidth = wr;
+				allocated[j] = true;
+			} else if(stems[j].ytouch - w >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1) {
+				stems[j].touchwidth = w;
+				allocated[j] = true;
+			}
+		};
+		for(var j = 0; j < stems.length; j++) if(!allocated[j]){
+			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
+			var sa = spaceAbove(stems, overlaps, j, pixelTop);
+			var wr = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH);
+			var w = Math.min(round(wr), round(stems[j].touchwidth + sb + sa - 2 * uppx));
+			if(w < uppx + 1) continue;
+			if(sa > 1.75 * uppx && stems[j].ytouch < avaliables[j].high * uppx) {
+				if(sb + stems[j].touchwidth > wr - 1 && stems[j].ytouch - wr >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - wr >= pixelBottom - 1) {
+					stems[j].touchwidth = wr;
+					stems[j].ytouch += uppx;
+					allocated[j] = true;
+				} else if(stems[j].ytouch - w >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - w >= pixelBottom - 1) {
+					stems[j].touchwidth = w;
+					stems[j].ytouch += uppx;
+					allocated[j] = true;
+				}
 			}
 		};
 	};
