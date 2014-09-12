@@ -1,0 +1,17 @@
+{
+  "name": "sfdhanautohint",
+  "description": "An optimized gridfit generator for Han characters.",
+  "version": "0.0.3",
+  "main": "./instructor.js",
+  "dependencies": {
+    "optimist": "",
+    "combined-stream": "",
+    "glob": "",
+    "dev-null": ""
+  },
+  "bin": {
+  	"hanhint": "./bin/hanhint",
+  	"mergesfd": "./bin/mergesfd",
+  	"splitsfd": "./bin/splitsfd"
+  }
+}

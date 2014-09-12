@@ -166,4 +166,7 @@ function instruct(input, strategy, cvt) {
 	return tt.join("\n")
 };
 
+exports.parseSFD = parseSFD
+exports.findStems = findStems
+exports.hint = hint
 exports.instruct = instruct

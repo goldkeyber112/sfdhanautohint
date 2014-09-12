@@ -1,7 +1,8 @@
+#!/usr/bin/env node
 var fs = require('fs');
 var readline = require('readline');
 var stream = require('stream');
-var instruct = require('./instructor').instruct;
+var instruct = require('../instructor').instruct;
 
 var argv = require('optimist').argv;
 

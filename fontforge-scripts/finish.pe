@@ -12,4 +12,4 @@ AutoHint();
 ClearHints("Vertical");
 AutoInstr();
 Print("Generating");
-Generate($1:r + ".ttf");
+Generate($2);

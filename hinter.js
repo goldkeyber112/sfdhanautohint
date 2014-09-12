@@ -407,7 +407,7 @@ function hint(glyph, ppem, strategy) {
 				allocated[j] = true;
 			}
 		};
-		for(var j = 0; j < stems.length; j++) if(!allocated[j]){
+		for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]){
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var sa = spaceAbove(stems, overlaps, j, pixelTop);
 			var wr = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH);
