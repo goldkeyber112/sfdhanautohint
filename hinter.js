@@ -213,15 +213,15 @@ function hint(glyph, ppem, strategy) {
 		return false;
 	}
 	var overlaps = glyph.stemOverlaps;
-	// Collision resolving
+	
+	// Pass 1. Early Uncollide
+	// In this pass we move stems to avoid collisions between them.
+	// This pass is deterministic, and its result will be used as the seed in the next
+	// pass.
 	function earlyUncollide(stems){
-		// In this procedure we move some segment stems to resolve collisions between them.
-		// A "collision" means that two stems meet togther after gridfitting.
-		// We will merge some of these stems to preserve the outfit of glyph while leaving
-		// space between strokes;
 		if(!stems.length) return;
 
-		// Step 0a : Adjust bottom stems
+		// Adjust bottom stems
 		var ytouchmin0 = stems[0].ytouch;
 		var ytouchmin = ytouchmin0;
 		for(var j = 0; j < stems.length; j++) {
@@ -236,7 +236,7 @@ function hint(glyph, ppem, strategy) {
 			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && stems[j].roundMethod === -1) roundUpStem(stems[j]);
 		}
 
-		// Step 0b : Adjust top stems
+		// Adjust top stems
 		var ytouchmax = stems[stems.length - 1].ytouch;
 		for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove) {
 			var stem = stems[j]
@@ -261,9 +261,7 @@ function hint(glyph, ppem, strategy) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
 
-		// Step 1: Early Uncollide
-		// We will perform stem movement using greedy method
-		// Not always works but okay for most characters
+		// Uncollide
 		for(var j = 0; j < stems.length; j++) {
 			if(stems[j].ytouch <= ytouchmin) { 
 				// Stems[j] is a bottom stem
@@ -300,16 +298,6 @@ function hint(glyph, ppem, strategy) {
 			}
 		};
 	};
-
-	function rebalance(stems){
-		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
-			if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch >= 0.6 * uppx) {
-				if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
-			} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori >= 0.6 * uppx) {
-				if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
-			}
-		};		
-	}
 
 	function potential(y, A, C, S, avaliables) {
 		var p = 0;
@@ -363,12 +351,13 @@ function hint(glyph, ppem, strategy) {
 		};
 		return p;
 	}
-	// Collision resolving
+	// Pass 2 : Uncollide
+	// In this pass a genetic algorithm take place to optimize stroke placements of the glyph.
+	// The optimization target is the "collision potential" evaluated using stroke position
+	// state vector |y>. Due to randomized mutations, the result is not deterministic, though
+	// reliable under most cases.
 	function uncollide(stems){
-		// In this procedure we move some segment stems to resolve collisions between them.
-		// A "collision" means that two stems meet togther after gridfitting.
-		// We will merge some of these stems to preserve the outfit of glyph while leaving
-		// space between strokes;
+
 		if(!stems.length) return;
 
 		var n = stems.length;
@@ -393,6 +382,18 @@ function hint(glyph, ppem, strategy) {
 		}
 	};
 
+	// Pass 3 : Rebalance
+	function rebalance(stems){
+		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
+			if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch >= 0.6 * uppx) {
+				if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
+			} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori >= 0.6 * uppx) {
+				if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
+			}
+		};		
+	}
+
+	// Pass 4 : Width allocation
 	function allocateWidth(stems) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
@@ -515,6 +516,7 @@ function hint(glyph, ppem, strategy) {
 			instructions.interpolations.push(['IP', a, b, c])
 		}
 	}
+	function BY_YORI(p, q){ return p.yori - q.yori }
 	function interpolatedUntouchedTopBottomPoints(contours){
 		var touchedPoints = [];
 		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
@@ -522,24 +524,24 @@ function hint(glyph, ppem, strategy) {
 				touchedPoints.push(contours[j].points[k]);
 			}
 		}
-		touchedPoints = touchedPoints.sort(function(p, q){ return p.yori - q.yori });
+		touchedPoints = touchedPoints.sort(BY_YORI);
 
 		for(var j = 0; j < contours.length; j++) {
 			var contourpoints = contours[j].points
 			var keypoints = contourpoints.filter(function(p){ return p.touched});
-			if(keypoints.length < 2) continue;
-			var k0 = contourpoints.indexOf(keypoints[0]);
-			var keyk = 0;
-			for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
-				var k = k_ % contourpoints.length;
-				if(contourpoints[k] === keypoints[keyk + 1]) {
-					keyk += 1;
-				} else if(contourpoints[k].yori >= keypoints[keyk].yori && contourpoints[k].yori <= keypoints[(keyk + 1) % keypoints.length].yori || contourpoints[k].yori <= keypoints[keyk].yori && contourpoints[k].yori >= keypoints[(keyk + 1) % keypoints.length].yori) {
-					contourpoints[k].donttouch = true;
+			if(keypoints.length >= 2) {
+				var k0 = contourpoints.indexOf(keypoints[0]);
+				var keyk = 0;
+				for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
+					var k = k_ % contourpoints.length;
+					if(contourpoints[k] === keypoints[keyk + 1]) {
+						keyk += 1;
+					} else if(contourpoints[k].yori >= keypoints[keyk].yori && contourpoints[k].yori <= keypoints[(keyk + 1) % keypoints.length].yori || contourpoints[k].yori <= keypoints[keyk].yori && contourpoints[k].yori >= keypoints[(keyk + 1) % keypoints.length].yori) {
+						contourpoints[k].donttouch = true;
+					}
 				}
 			}
-		}
-		for(var j = 0; j < contours.length; j++) {
+
 			var contourExtrema = [];
 			for(var k = 0; k < contours[j].points.length; k++) {
 				var point = contours[j].points[k]
@@ -547,7 +549,18 @@ function hint(glyph, ppem, strategy) {
 					contourExtrema.push(point);
 				}
 			};
-			for(var k = 0; k < contourExtrema.length; k++) {
+			if(keypoints.length > 1) {
+				keypoints = keypoints.sort(BY_YORI)
+				for(var k = 0; k < contourExtrema.length; k++) if(!contourExtrema[k].touched) {
+					for(var m = 1; m < keypoints.length; m++) {
+						if(keypoints[m].yori > contourExtrema[k].yori && keypoints[m - 1].yori <= contourExtrema[k].yori) {
+							interpolate(keypoints[m - 1], keypoints[m], contourExtrema[k], 'IP');
+							break;
+						}
+					}
+				}
+			}
+			for(var k = 0; k < contourExtrema.length; k++) if(!contourExtrema[k].touched) {
 				for(var m = 1; m < touchedPoints.length; m++) {
 					if(touchedPoints[m].yori > contourExtrema[k].yori && touchedPoints[m - 1].yori <= contourExtrema[k].yori) {
 						interpolate(touchedPoints[m - 1], touchedPoints[m], contourExtrema[k], 'IP');
