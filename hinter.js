@@ -22,7 +22,7 @@ function hint(glyph, ppem, strategy) {
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
 	var MIN_TOUCHED_STEM_WIDTH = strategy.MIN_TOUCHED_STEM_WIDTH || 1;
-	var LOW_PPEM_LIMIT = strategy.LOW_PPEM_LIMIT || 13;
+	var LOW_PPEM_LIMIT = strategy.LOW_PPEM_LIMIT || 14;
 	var MIN_LOW_PPEM_STEM_WIDTH = strategy.MIN_LOW_PPEM_STEM_WIDTH || 1;
 	
 	var mtsw = ppem <= LOW_PPEM_LIMIT ? MIN_LOW_PPEM_STEM_WIDTH : MIN_TOUCHED_STEM_WIDTH;
@@ -525,17 +525,32 @@ function hint(glyph, ppem, strategy) {
 		touchedPoints = touchedPoints.sort(function(p, q){ return p.yori - q.yori });
 
 		for(var j = 0; j < contours.length; j++) {
+			var contourpoints = contours[j].points
+			var keypoints = contourpoints.filter(function(p){ return p.touched});
+			if(keypoints.length < 2) continue;
+			var k0 = contourpoints.indexOf(keypoints[0]);
+			var keyk = 0;
+			for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
+				var k = k_ % contourpoints.length;
+				if(contourpoints[k] === keypoints[keyk + 1]) {
+					keyk += 1;
+				} else if(contourpoints[k].yori >= keypoints[keyk].yori && contourpoints[k].yori <= keypoints[(keyk + 1) % keypoints.length].yori || contourpoints[k].yori <= keypoints[keyk].yori && contourpoints[k].yori >= keypoints[(keyk + 1) % keypoints.length].yori) {
+					contourpoints[k].donttouch = true;
+				}
+			}
+		}
+		for(var j = 0; j < contours.length; j++) {
 			var contourExtrema = [];
 			for(var k = 0; k < contours[j].points.length; k++) {
 				var point = contours[j].points[k]
-				if(point.yExtrema && !point.touched) {
+				if(point.yExtrema && !point.touched && !point.donttouch) {
 					contourExtrema.push(point);
 				}
 			};
 			for(var k = 0; k < contourExtrema.length; k++) {
 				for(var m = 1; m < touchedPoints.length; m++) {
 					if(touchedPoints[m].yori > contourExtrema[k].yori && touchedPoints[m - 1].yori <= contourExtrema[k].yori) {
-						interpolate(touchedPoints[m - 1], touchedPoints[m], contourExtrema[k], true);
+						interpolate(touchedPoints[m - 1], touchedPoints[m], contourExtrema[k], 'IP');
 						break;
 					}
 				}
