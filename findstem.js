@@ -1,6 +1,6 @@
 var MIN_OVERLAP_RATIO = 0.3;
 var MIN_STEM_OVERLAP_RATIO = 0.2;
-var Y_FUZZ = 3
+var Y_FUZZ = 7
 var SLOPE_FUZZ = 0.04
 
 function findStems(glyph, strategy) {
@@ -22,7 +22,7 @@ function findStems(glyph, strategy) {
 	var COEFF_A_RADICAL_MERGE = strategy.COEFF_A_RADICAL_MERGE || 1;
 	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 25;
 	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 3;
-	var COEFF_S = strategy.COEFF_S || 10000;
+	var COEFF_S = strategy.COEFF_S || 500;
 	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -40;
 
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
@@ -78,7 +78,9 @@ function findStems(glyph, strategy) {
 	function stemOverlapRatio(a, b){
 		return Math.max(overlapRatio(a.low, b.low), overlapRatio(a.high, b.low), overlapRatio(a.low, b.high), overlapRatio(a.high, b.high))
 	}
-
+	function stemOverlapLength(a, b){
+		return Math.max(overlapInfo(a.low, b.low).len, overlapInfo(a.high, b.low).len, overlapInfo(a.low, b.high).len, overlapInfo(a.high, b.high).len) / upm
+	}
 	
 	function atRadicalTop(stem){
 		return !stem.hasSameRadicalStemAbove
@@ -231,7 +233,6 @@ function findStems(glyph, strategy) {
 			var ori = radicals[r].outline.ccw;
 			// We stem segments bottom-up.
 			for(var j = 0; j < segs.length; j++) if(segs[j] && ori === (segs[j][0][0].xori < segs[j][0][segs[j][0].length - 1].xori)) {
-				debugger;
 				var stem = {low: segs[j]};
 				for(var k = j + 1; k < segs.length; k++) if(segs[k] && overlapRatio(segs[j], segs[k]) >= MIN_OVERLAP_RATIO) {
 					if(ori !== (segs[k][0][0].xori < segs[k][0][segs[k][0].length - 1].xori)
@@ -323,7 +324,8 @@ function findStems(glyph, strategy) {
 		};
 		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
-				var ovr = overlaps[j][k];
+				// var ovr = overlaps[j][k];
+				var ovr = Math.sqrt(stemOverlapLength(stems[j], stems[k]) * overlaps[j][k])
 				var coeffA = 1;
 				if(stems[j].belongRadical === stems[k].belongRadical) {
 					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
@@ -332,9 +334,9 @@ function findStems(glyph, strategy) {
 					if(atRadicalBottom(stems[j]) && atRadicalTop(stems[k])) coeffA = COEFF_A_RADICAL_MERGE
 				}
 				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
-				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz && stems[j].belongRadical !== stems[k].belongRadical) {
-					A[j][k] = COEFF_A_SYMMETRY
-				};
+//				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz && stems[j].belongRadical !== stems[k].belongRadical) {
+//					A[j][k] = COEFF_A_SYMMETRY
+//				};
 
 				var coeffC = 1;
 				if(stems[j].belongRadical === stems[k].belongRadical) coeffC = COEFF_C_SAME_RADICAL;

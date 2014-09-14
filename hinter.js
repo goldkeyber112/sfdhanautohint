@@ -124,7 +124,17 @@ function hint(glyph, ppem, strategy) {
 			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
-			if(atGlyphTop(stems[j]) && center > pixelTop - uppx && stems[j].yori - roundDown(center) >= 0.25 * uppx) center = pixelTop;
+			if(atGlyphTop(stems[j])) {
+				var yrdtg = roundDown(stems[j].yori)
+				var canAdjustUpToGlyphTop = yrdtg < Math.min(high * uppx, pixelTop - blueFuzz) && yrdtg >= pixelTop - uppx - 1;
+				if(canAdjustUpToGlyphTop && stems[j].yori - yrdtg >= 0.47 * uppx) {
+					// Rounding-related upward adjustment
+					center = yrdtg + uppx
+				} else if(canAdjustUpToGlyphTop && stems[j].yori - yrdtg >= 0.25 * uppx) {
+					// Strategy-based upward adjustment
+					center = yrdtg + uppx
+				};
+			} 
 			if(atGlyphBottom(stems[j]) && center < pixelBottom + w + 0.75 * uppx) center = pixelBottom + w;
 			center = xclamp(center, low, high);
 			
@@ -299,57 +309,88 @@ function hint(glyph, ppem, strategy) {
 		};
 	};
 
-	function potential(y, A, C, S, avaliables) {
+	function collidePotential(y, A, C, S, avaliables) {
+		var p = 0;
+		var n = y.length;
+		for(var j = 0; j < n; j++) {
+			for(var k = 0; k < j; k++) {
+				if(y[j] === y[k]) p += A[j][k]
+				else if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
+				if(y[j] < y[k] || Math.abs(avaliables[j].center - avaliables[k].center) < 4 && y[j] !== y[k]) p += S[j][k]
+			};
+		};
+		return p;	
+	}
+	function ablationPotential(y, A, C, S, avaliables) {
 		var p = 0;
 		var n = y.length;
 		var ymin = ppem, ymax = -ppem;
 		for(var j = 0; j < n; j++) {
 			if(y[j] > ymax) ymax = y[j];
 			if(y[j] < ymin) ymin = y[j];
-			for(var k = 0; k < j; k++) {
-				if(y[j] === y[k]) p += A[j][k]
-				else if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
-				if(y[j] < y[k]) p += S[j][k]
-			};
-			p += avaliables[j].ablationCoeff * Math.abs(y[j] * uppx - avaliables[j].center)
-		};
+		}
 		var ymaxt = Math.max(ymax, glyfTop);
 		var ymint = Math.min(ymin, glyfBottom);
-		var pd = 0
 		for(var j = 0; j < y.length; j++) {
-			pd += COEFF_PORPORTION_DISTORTION * Math.abs(y[j] - (ymin + avaliables[j].proportion * (ymax - ymin)))
+			p += avaliables[j].ablationCoeff * Math.abs(y[j] * uppx - avaliables[j].center)
+			p += COEFF_PORPORTION_DISTORTION * Math.abs(y[j] - (ymin + avaliables[j].proportion * (ymax - ymin)))
 		};
-		return p + pd;
+		return p;
 	};
-	function byPotential(p, q){ return p.potential - q.potential };
-	function Entity(y){
+	function byPotential(p, q){ return p.collidePotential + p.ablationPotential - q.collidePotential - q.ablationPotential };
+	function Organism(y){
 		this.gene = y;
-		this.potential = potential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
+		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
+		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
+	};
+	function birth(father, mother){
+		var y1 = father.slice(0);
+		var lastChoosedMother = false;
+		 if(Math.random() > 0.5) {
+		 	y1[0] = mother[0];
+		 	lastChoosedMother = true;
+		 }
+		for(var j = 1; j < father.length; j++) { 
+			if(symmetricQ(j, j - 1)) {
+				y1[j] = lastChoosedMother ? mother[j] : father[j]
+			} else {
+				if(Math.random() > 0.5) { y1[j] = mother[j]; lastChoosedMother = true }
+				else lastChoosedMother = false
+			}
+		}
+		if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
+		return new Organism(y1);
+	};
+	function symmetricQ(j, k){
+		return Math.abs(avaliables[j].center - avaliables[k].center) < 4
+	}
+	function mutantAt(y1, rj, pos){
+		y1[rj] = pos;
+		for(var j = rj + 1; j < y1.length && symmetricQ(j, rj); j++) y1[j] = y1[rj]
+		for(var j = rj - 1; j >= 0 && symmetricQ(j, rj); j--) y1[j] = y1[rj]
 	};
 	function mutant(y1){
 		var rj = Math.floor(Math.random() * y1.length);
-		y1[rj] = avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999));	
+		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)))
 	}
+	function dedup(pop){
+		var res = [pop[0]];
+		for(var j = 1; j < pop.length; j++) if(pop[j].potential !== pop[j - 1].potential) res.push(pop[j]);
+		return res;
+	};
+	function sqr(x){ return x }
 
 	function evolve(population) {
 		var children = [];
 		for(var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
-			var father = population[Math.floor(Math.random() * population.length)].gene;
-			var mother = population[Math.floor(Math.random() * population.length)].gene;
+			var father = population[Math.floor(sqr(Math.random()) * population.length)].gene;
+			var mother = population[Math.floor(sqr(Math.random()) * population.length)].gene;
 			var y1 = father.slice(0);
 			for(var j = 0; j < father.length; j++) if(Math.random() > 0.5) y1[j] = mother[j]
 			if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
-			children[c] = new Entity(y1)
+			children[c] = new Organism(y1)
 		};
-		return population.concat(children).sort(byPotential).slice(0, POPULATION_LIMIT);
-		var p = p1.slice(0, ELITE_COUNT)
-		var index = ELITE_COUNT;
-		for(var j = ELITE_COUNT; j < POPULATION_LIMIT; j++) {
-			if(Math.random() < 0.1) index += 1;
-			if(index >= p1.length) break;
-			p[j] = p1[index++]
-		};
-		return p;
+		return dedup(population.concat(children).sort(byPotential)).slice(0, POPULATION_LIMIT);
 	}
 	// Pass 2 : Uncollide
 	// In this pass a genetic algorithm take place to optimize stroke placements of the glyph.
@@ -363,21 +404,23 @@ function hint(glyph, ppem, strategy) {
 		var n = stems.length;
 		var y0 = stems.map(function(s, j){ return xclamp(Math.round(stems[j].ytouch / uppx), avaliables[j].low, avaliables[j].high) });
 
-		var population = [new Entity(y0)];
+		var population = [new Organism(y0)];
 		for(var j = 0; j < n; j++){
 			for(var k = avaliables[j].low; k <= avaliables[j].high; k++) if(k !== y0[j]) {
 				var y1 = y0.slice(0);
-				y1[j] = k;
-				population.push(new Entity(y1));
+				mutantAt(y1, j, k)
+				population.push(new Organism(y1));
 			}
 		}
 
-		for(var s = 0; s < EVOLUTION_STAGES; s++) population = evolve(population)
-
+		for(var s = 0; s < EVOLUTION_STAGES; s++) {
+			population = evolve(population);
+		}
+		
 		// Assign
 		for(var j = 0; j < stems.length; j++){
 			stems[j].ytouch = population[0].gene[j] * uppx;
-			stems[j].touchwidth = uppx;
+			//stems[j].touchwidth = uppx;
 			stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
 		}
 	};
@@ -399,7 +442,6 @@ function hint(glyph, ppem, strategy) {
 		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var allocated = [];
 		for(var j = 0; j < stems.length; j++) {
-			debugger;
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var wr = calculateWidth(stems[j].width, mtsw);
 			var w = Math.min(round(wr), round(stems[j].touchwidth + sb - uppx));
@@ -517,26 +559,37 @@ function hint(glyph, ppem, strategy) {
 		}
 	}
 	function BY_YORI(p, q){ return p.yori - q.yori }
-	function interpolatedUntouchedTopBottomPoints(contours){
-		var touchedPoints = [];
-		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
-			if(contours[j].points[k].touched && contours[j].points[k].keypoint) {
-				touchedPoints.push(contours[j].points[k]);
+
+	function interpolateByKeys(pts, keys){
+		for(var k = 0; k < pts.length; k++) if(!pts[k].touched) {
+			for(var m = 1; m < keys.length; m++) {
+				if(keys[m].yori > pts[k].yori && keys[m - 1].yori <= pts[k].yori) {
+					interpolate(keys[m - 1], keys[m], pts[k], 'IP');
+					break;
+				}
 			}
 		}
-		touchedPoints = touchedPoints.sort(BY_YORI);
+	}
+	function interpolatedUntouchedTopBottomPoints(contours) {
+		var glyphKeypoints = [];
+		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
+			if(contours[j].points[k].touched && contours[j].points[k].keypoint) {
+				glyphKeypoints.push(contours[j].points[k]);
+			}
+		}
+		glyphKeypoints = glyphKeypoints.sort(BY_YORI);
 
 		for(var j = 0; j < contours.length; j++) {
 			var contourpoints = contours[j].points
-			var keypoints = contourpoints.filter(function(p){ return p.touched});
-			if(keypoints.length >= 2) {
-				var k0 = contourpoints.indexOf(keypoints[0]);
+			var contourKeypoints = contourpoints.filter(function(p){ return p.touched});
+			if(contourKeypoints.length >= 2) {
+				var k0 = contourpoints.indexOf(contourKeypoints[0]);
 				var keyk = 0;
 				for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
 					var k = k_ % contourpoints.length;
-					if(contourpoints[k] === keypoints[keyk + 1]) {
+					if(contourpoints[k] === contourKeypoints[keyk + 1]) {
 						keyk += 1;
-					} else if(contourpoints[k].yori >= keypoints[keyk].yori && contourpoints[k].yori <= keypoints[(keyk + 1) % keypoints.length].yori || contourpoints[k].yori <= keypoints[keyk].yori && contourpoints[k].yori >= keypoints[(keyk + 1) % keypoints.length].yori) {
+					} else if(contourpoints[k].yori >= contourKeypoints[keyk].yori && contourpoints[k].yori <= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori || contourpoints[k].yori <= contourKeypoints[keyk].yori && contourpoints[k].yori >= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori) {
 						contourpoints[k].donttouch = true;
 					}
 				}
@@ -549,25 +602,8 @@ function hint(glyph, ppem, strategy) {
 					contourExtrema.push(point);
 				}
 			};
-			if(keypoints.length > 1) {
-				keypoints = keypoints.sort(BY_YORI)
-				for(var k = 0; k < contourExtrema.length; k++) if(!contourExtrema[k].touched) {
-					for(var m = 1; m < keypoints.length; m++) {
-						if(keypoints[m].yori > contourExtrema[k].yori && keypoints[m - 1].yori <= contourExtrema[k].yori) {
-							interpolate(keypoints[m - 1], keypoints[m], contourExtrema[k], 'IP');
-							break;
-						}
-					}
-				}
-			}
-			for(var k = 0; k < contourExtrema.length; k++) if(!contourExtrema[k].touched) {
-				for(var m = 1; m < touchedPoints.length; m++) {
-					if(touchedPoints[m].yori > contourExtrema[k].yori && touchedPoints[m - 1].yori <= contourExtrema[k].yori) {
-						interpolate(touchedPoints[m - 1], touchedPoints[m], contourExtrema[k], 'IP');
-						break;
-					}
-				}
-			}
+			if(contourKeypoints.length > 1) { interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI)) }
+			interpolateByKeys(contourExtrema, glyphKeypoints)
 		}
 	}
 	// IUPy interpolates untouched points just like TT instructions.
@@ -604,13 +640,29 @@ function hint(glyph, ppem, strategy) {
 			contours[j].points[k].donttouch = false;
 			contours[j].points[k].ytouch = contours[j].points[k].yori;
 		}
-	}
+	};
 
 	untouchAll(contours);
-	initStemTouches(stems, glyph.radicals);
-	earlyUncollide(stems);
-//	rebalance(stems);
-	uncollide(stems);
+	(function(){
+		var y0 = avaliables.map(function(a){ return Math.round(a.center / uppx) });
+		var y0min = y0[0];
+		var y0max = y0[y0.length - 1];
+		for(var j = 0; j < stems.length; j++){
+			y0[j] = xclamp(Math.round(y0min + (y0max - y0min) * avaliables[j].proportion), avaliables[j].low, avaliables[j].high)
+		}
+		var og = new Organism(y0);
+		if(og.collidePotential <= 0) {
+			for(var j = 0; j < stems.length; j++){
+				stems[j].ytouch = og.gene[j] * uppx;
+				stems[j].touchwidth = uppx;
+				stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
+			}
+		} else {
+			initStemTouches(stems, glyph.radicals);
+			earlyUncollide(stems);
+			uncollide(stems);
+		}
+	})();
 	rebalance(stems);
 	allocateWidth(stems);
 	touchStemPoints(stems);
