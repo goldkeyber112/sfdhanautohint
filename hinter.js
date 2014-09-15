@@ -39,6 +39,8 @@ function hint(glyph, ppem, strategy) {
 	var BLUEZONE_BOTTOM_LIMIT = (strategy.BLUEZONE_BOTTOM_LIMIT || -65) / 1000 * upm;
 	var BLUEZONE_TOP_LIMIT = (strategy.BLUEZONE_TOP_LIMIT || 825) / 1000 * upm;
 
+	var DONT_ADJUST_STEM_WIDTH = strategy.DONT_ADJUST_STEM_WIDTH || false;
+
 
 	var shouldAddGlyphHeight = strategy.shouldAddGlyphHeight || function(stem, ppem, pixelTop, pixelBottom) {
 		return stem.yori - stem.ytouch >= 0.25 * uppx
@@ -90,8 +92,8 @@ function hint(glyph, ppem, strategy) {
 	function calculateWidth(w, mstw){
 		mstw = mstw || 1;
 		if(w < mstw * uppx) return mstw * uppx;
-//		else if (w < (1 + mstw) * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
-//			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)));
+		else if (!DONT_ADJUST_STEM_WIDTH && w < (1 + mstw) * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
+			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)));
 		else return Math.round(w / uppx) * uppx;
 	}
 
