@@ -11,7 +11,5 @@ var directory = argv._[0];
 var outstream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }) : process.stdout;
 
 var cs = CombinedStream.create();
-cs.append(fs.createReadStream(path.join(directory, "font.info")))
-glob.sync(path.join(directory, '*.glyphs')).forEach(function(f){ cs.append(fs.createReadStream(f)) })
-cs.append(fs.createReadStream(path.join(directory, "final.info")));
+argv._.forEach(function(file){ cs.append(fs.createReadStream(file)) });
 cs.pipe(outstream)

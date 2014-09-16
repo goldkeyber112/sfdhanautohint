@@ -24,8 +24,6 @@ function hint(glyph, ppem, strategy) {
 	var MIN_TOUCHED_STEM_WIDTH = strategy.MIN_TOUCHED_STEM_WIDTH || 1;
 	var LOW_PPEM_LIMIT = strategy.LOW_PPEM_LIMIT || 14;
 	var MIN_LOW_PPEM_STEM_WIDTH = strategy.MIN_LOW_PPEM_STEM_WIDTH || 1;
-	
-	var mtsw = ppem <= LOW_PPEM_LIMIT ? MIN_LOW_PPEM_STEM_WIDTH : MIN_TOUCHED_STEM_WIDTH;
 
 	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 1;
 	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 2;
@@ -90,8 +88,8 @@ function hint(glyph, ppem, strategy) {
 	function clamp(x){ return Math.min(1, Math.max(0, x)) }
 	function xclamp(x, low, high){ return Math.min(high, Math.max(low, x)) }
 	function calculateWidth(w, mstw){
-		mstw = mstw || 1;
-		if(w < mstw * uppx) return mstw * uppx;
+		if(ppem <= LOW_PPEM_LIMIT) return MIN_LOW_PPEM_STEM_WIDTH * uppx;
+		else if(w < mstw * uppx) return mstw * uppx;
 		else if (!DONT_ADJUST_STEM_WIDTH && w < (1 + mstw) * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
 			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)));
 		else return Math.round(w / uppx) * uppx;
@@ -445,8 +443,8 @@ function hint(glyph, ppem, strategy) {
 		var allocated = [];
 		for(var j = 0; j < stems.length; j++) {
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
-			var wr = calculateWidth(stems[j].width, mtsw);
-			var w = Math.min(round(wr), round(stems[j].touchwidth + sb - uppx));
+			var wr = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH);
+			var w = Math.min(wr, round(stems[j].touchwidth + sb - uppx));
 			if(w < uppx + 1) continue;
 			if(sb + stems[j].touchwidth > wr + uppx - 1 && stems[j].ytouch - wr >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - wr >= pixelBottom - 1) {
 				stems[j].touchwidth = wr;
@@ -459,8 +457,8 @@ function hint(glyph, ppem, strategy) {
 		for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]){
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var sa = spaceAbove(stems, overlaps, j, pixelTop);
-			var wr = calculateWidth(stems[j].width, mtsw);
-			var w = Math.min(round(wr), round(stems[j].touchwidth + sb + sa - 2 * uppx));
+			var wr = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH);
+			var w = Math.min(wr, round(stems[j].touchwidth + sb + sa - 2 * uppx));
 			if(w < uppx + 1) continue;
 			if(sa > 1.75 * uppx && stems[j].ytouch < avaliables[j].high * uppx) {
 				if(sb + stems[j].touchwidth > wr - 1 && stems[j].ytouch - wr >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - wr >= pixelBottom - 1) {
@@ -482,7 +480,8 @@ function hint(glyph, ppem, strategy) {
 		interpolations: []
 	};
 	// Touching procedure
-	function touchStemPoints(stems){
+	function touchStemPoints(stems) {
+		var mstw = ppem <= LOW_PPEM_LIMIT ? MIN_LOW_PPEM_STEM_WIDTH : MIN_TOUCHED_STEM_WIDTH
 		for(var j = 0; j < stems.length; j++){
 			var stem = stems[j], w = stem.touchwidth;
 			var topkey = null, bottomkey = null, topaligns = [], bottomaligns = [];
@@ -506,12 +505,12 @@ function hint(glyph, ppem, strategy) {
 					stem.low[k][p].ytouch = stem.ytouch - w;
 					stem.low[k][p].touched = true;
 					if(k === 0) {
-						if(stem.touchwidth >= round(stem.width) && Math.abs(stem.ytouch - stem.touchwidth - pixelBottom) < 1 && stem.width >= mtsw * uppx) {
+						if(stem.touchwidth >= round(stem.width) && Math.abs(stem.ytouch - stem.touchwidth - pixelBottom) < 1 && stem.width >= mstw * uppx) {
 							stem.touchwidth = stem.width;
 							stem.low[k][p].keypoint = true;
 							topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, pixelBottom]
 							bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0]]
-						} else if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= mtsw * uppx) {
+						} else if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= mstw * uppx) {
 							stem.touchwidth = stem.width;
 							bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0]]
 						}

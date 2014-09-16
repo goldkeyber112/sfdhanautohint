@@ -3,12 +3,13 @@ var fs = require('fs');
 var readline = require('readline');
 var stream = require('stream');
 var instruct = require('../instructor').instruct;
-
+var devnull = require('dev-null');
+var colors = require('colors');
 var argv = require('optimist').argv;
 
 var instream = argv._[0] ? fs.createReadStream(argv._[0]): process.stdin;
 var outstream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }): process.stdout;
-var rl = readline.createInterface(instream, outstream);
+var rl = readline.createInterface(instream, devnull());
 
 var n = 0;
 var buf = '';
@@ -74,6 +75,7 @@ for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
 var curChar = null;
 var readingSpline = false;
 var readingTT = false;
+process.stderr.write("[Start]    ".yellow + "Start hinting " + (argv._[0] || '(stdin)').green + '\n')
 rl.on('line', function(line) {
 
 	if(/^StartChar:/.test(line)) {
@@ -86,9 +88,11 @@ rl.on('line', function(line) {
 		curChar.input += line + '\n';
 	} else if(/^EndChar/.test(line)) {
 		if(curChar){
-			if(!argv.silent && n % (argv.verbose ? 1: 200) === 0) process.stdout.write("Hinting /" + curChar.id + ' of ' + process.argv[2] + '\n')
-			var instructions = instruct(curChar.input, strategy, cvt)
-			if(instructions) buf += "TtInstrs:\n" + instructions + "\nEndTTInstrs\n";
+			if(!argv.silent && n % (argv.verbose ? 1: 100) === 0) process.stderr.write("[Progress] ".yellow + "Hinting /" + curChar.id + ' of ' + (argv._[0] || '(stdin)').green + '\n')
+			if(!argv.cvt_only) {
+				var instructions = instruct(curChar.input, strategy, cvt)
+				if(instructions) buf += "TtInstrs:\n" + instructions + "\nEndTTInstrs\n";
+			}
 			n++;
 		};
 		curChar = null;
@@ -97,7 +101,7 @@ rl.on('line', function(line) {
 	};
 
 	buf += line + '\n';
-	if(buf.length >= 40960) {
+	if(buf.length >= 4096) {
 		outstream.write(buf);
 		buf = '';
 	}
@@ -105,5 +109,6 @@ rl.on('line', function(line) {
 
 rl.on('close', function() {
 	if(buf) outstream.write(buf);
-	outstream.end()
+	outstream.end();
+	process.stderr.write("[Done]     ".yellow + "Done hinting " + (argv._[0] || '(stdin)').green + '\n')
 });
