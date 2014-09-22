@@ -91,7 +91,7 @@ function instruct(input, strategy, cvt) {
 	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER);
 
 	var glyph = findStems(parseSFD(input), strategy);
-	if(!glyph.stems.length) return;
+	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]'];
 
 	// Hint for bluezone alignments
@@ -113,40 +113,42 @@ function instruct(input, strategy, cvt) {
 		}
 	}
 
-
-	tt.push('MPPEM');
-	for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
-		var instrs = hint(glyph, ppem, strategy).instructions;
-		tt.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
-		var biases = {}
-		for(var k = 0; k < instrs.roundingStems.length; k++){
-			var tk = instrs.roundingStems[k].topkey;
-			var original = tk[2]
-			var rounded = rtg(original, upm, ppem);
-			var target = tk[3];
-			var bias = 64 * Math.round((target - rounded) / (upm / ppem));
-			var roundBias = (original - rounded) / (upm / ppem);
-			if(roundBias >= 0.48 && roundBias <= 0.52) {
-				// RTG rounds TK down, but it is close to the middle
-				bias -= 16
-			} else if(roundBias >= -0.52 && roundBias <= -0.48) {
-				bias += 16
+	if(glyph.stems.length) {
+		tt.push('MPPEM');
+		for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
+			var instrs = hint(glyph, ppem, strategy).instructions;
+			tt.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
+			var biases = {}
+			for(var k = 0; k < instrs.roundingStems.length; k++){
+				var tk = instrs.roundingStems[k].topkey;
+				var original = tk[2]
+				var rounded = rtg(original, upm, ppem);
+				var target = tk[3];
+				var bias = 64 * Math.round((target - rounded) / (upm / ppem));
+				var roundBias = (original - rounded) / (upm / ppem);
+				if(roundBias >= 0.48 && roundBias <= 0.52) {
+					// RTG rounds TK down, but it is close to the middle
+					bias -= 16
+				} else if(roundBias >= -0.52 && roundBias <= -0.48) {
+					bias += 16
+				}
+				if(!biases[bias]) biases[bias] = []
+				biases[bias].push(instrs.roundingStems[k])
+			};
+			tt.push('RTG');
+			// SHPIX instructions
+			for(var bias in biases) {
+				if(bias - 0) {
+					pushargs(tt, biases[bias].map(function(s){ return s.topkey[1].id }));
+					pushargs(tt, [bias - 0, biases[bias].length]);
+					tt.push('SLOOP', 'SHPIX')
+				}
 			}
-			if(!biases[bias]) biases[bias] = []
-			biases[bias].push(instrs.roundingStems[k])
-		};
-		tt.push('RTG');
-		// SHPIX instructions
-		for(var bias in biases) {
-			if(bias - 0) {
-				pushargs(tt, biases[bias].map(function(s){ return s.topkey[1].id }));
-				pushargs(tt, [bias - 0, biases[bias].length]);
-				tt.push('SLOOP', 'SHPIX')
-			}
-		}
-		tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt));
-		tt.push('EIF');
-	};
+			tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt));
+			tt.push('EIF');
+		};		
+	}
+	
 	// Interpolations
 	tt = tt.concat(ipInstrs(h0.interpolations));
 	// Hint for in-stem alignments
