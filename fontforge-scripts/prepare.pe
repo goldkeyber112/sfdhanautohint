@@ -8,7 +8,16 @@ ClearTable('fpgm');
 ClearTable('prep');
 ClearTable('cvt ');
 ClearTable('maxp');
-Print("Outline Cleanup...")
+Print("Outline Cleanup...");
 SetFontOrder(2);
-Print("Saving...");
-Save($1:r + ".sfd")
+SelectAll();
+Simplify(-1, 1);
+AddExtrema();
+CanonicalContours();
+CanonicalStart();
+Print("Saving ttf...");
+Generate($1:r + "-tmp.ttf", "", 8);
+Close();
+Print("Saving SFD...");
+Open($1:r + "-tmp.ttf");
+Save($2);

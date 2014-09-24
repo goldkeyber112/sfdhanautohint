@@ -13,25 +13,32 @@ function numberPoints(contours){
 function parseSFD(input){
 	var contours = [], currentContour = null
 	input = input.trim().split('\n');
+	var currentid = -1;
+	var sequentid = -1;
+	var nPoints = 0;
 	for(var j = 0; j < input.length; j++){
 		var line = input[j].trim().split(/ +/);
+		var flags = line[line.length - 1].split(',');
+		currentid = flags[1] - 0;
 		if(line[2] === 'm'){
 			// Moveto
 			if(currentContour) contours.push(currentContour);
 			currentContour = new Contour();
-			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, true))
+			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, true, currentid))
 		} else if(line[2] === 'l' && currentContour){
 			// Lineto
-			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, true))
+			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, true, currentid))
 		} else if(line[6] === 'c' && currentContour){
 			// curveTo
-			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, false))
-			currentContour.points.push(new Point(line[4] - 0, line[5] - 0, true, /^128,/.test(line[7])))
+			currentContour.points.push(new Point(line[0] - 0, line[1] - 0, false, sequentid))
+			currentContour.points.push(new Point(line[4] - 0, line[5] - 0, true, currentid))
 		}
+		sequentid = flags[2] - 0;
+		nPoints = Math.max(nPoints, currentid, sequentid)
 	}
 	if(currentContour) contours.push(currentContour);
 	contours.forEach(function(c){ c.stat() })
-	var nPoints = numberPoints(contours);
+//	var nPoints = numberPoints(contours);
 	var glyph = new Glyph(contours);
 	glyph.nPoints = nPoints;
 	return glyph

@@ -505,7 +505,8 @@ function hint(glyph, ppem, strategy) {
 				} else {
 					stem.high[k][p].donttouch = true;
 				}
-			}
+			};
+			// Bottom edge of a stem
 			for(var k = 0; k < stem.low.length; k++) for(var p = 0; p < stem.low[k].length; p++) {
 				if(p === 0) {
 					stem.low[k][p].ytouch = stem.ytouch - w;

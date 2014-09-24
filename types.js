@@ -1,4 +1,4 @@
-function Point(x, y, on, interpolated){
+function Point(x, y, on, id){
 	this.xori = x;
 	this.yori = y;
 	this.xtouch = x;
@@ -6,7 +6,8 @@ function Point(x, y, on, interpolated){
 	this.touched = false;
 	this.donttouch = false;
 	this.on = on;
-	this.interpolated = interpolated;
+	this.id = id;
+	this.interpolated = id < 0;
 }
 function Contour(){
 	this.points = []
