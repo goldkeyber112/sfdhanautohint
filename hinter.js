@@ -448,6 +448,7 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < stems.length; j++) {
 			properWidths[j] = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH)
 		};
+		// Allocate stem width downward
 		for(var j = 0; j < stems.length; j++) {
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var wr = properWidths[j];
@@ -461,9 +462,10 @@ function hint(glyph, ppem, strategy) {
 				allocated[j] = true;
 			}
 		};
+		// Allocate stem width upward
 		for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]){
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
-			var sa = spaceAbove(stems, overlaps, j, pixelTop);
+			var sa = spaceAbove(stems, overlaps, j, pixelTop + uppx);
 			var wr = properWidths[j];
 			var w = Math.min(wr, round(stems[j].touchwidth + sb + sa - 2 * uppx));
 			if(w < uppx + 1) continue;

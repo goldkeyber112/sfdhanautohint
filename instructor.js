@@ -20,15 +20,16 @@ function pushargs(tt){
 	}
 };
 
-function roundingStemInstrs(glyph, upm, ppem, actions, cvt){
+function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 	var tt = [];
 	var args = [];
 	var movements = [];
+	padding = padding || 0;
 	for(var k = 0; k < actions.length; k++){
 		if(actions[k].bottomkey.length > 3) {
 			var cvtwidth = -Math.round(upm / ppem * (actions[k].bottomkey[3] | 0));
 			var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
-			var cvtj = cvt.indexOf(cvtwidth)
+			var cvtj = cvt.indexOf(cvtwidth) + padding
 			if(cvtj >= 0) {
 				args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
 				movements.push('MIRP[0]', 'MDAP[rnd]');
@@ -82,13 +83,15 @@ function ipInstrs(actions){
 	}
 }
 
-function instruct(input, strategy, cvt) {
+function instruct(input, strategy, cvt, padding) {
 	var upm = strategy.UPM || 1000;
 	var PPEM_MIN = strategy.PPEM_MIN;
 	var PPEM_MAX = strategy.PPEM_MAX;
 
-	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER);
-	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER);
+	var padding = padding || 0;
+
+	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER) + padding;
+	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER) + padding;
 
 	var glyph = findStems(parseSFD(input), strategy);
 	// if(!glyph.stems.length) return;
@@ -144,7 +147,7 @@ function instruct(input, strategy, cvt) {
 					tt.push('SLOOP', 'SHPIX')
 				}
 			}
-			tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt));
+			tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt, padding));
 			tt.push('EIF');
 		};		
 	}
