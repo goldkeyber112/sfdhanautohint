@@ -29,7 +29,7 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 		if(actions[k].bottomkey.length > 3) {
 			var cvtwidth = -Math.round(upm / ppem * (actions[k].bottomkey[3] | 0));
 			var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
-			var cvtj = cvt.indexOf(cvtwidth) + padding
+			var cvtj = cvt.indexOf(cvtwidth, padding)
 			if(cvtj >= 0) {
 				args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
 				movements.push('MIRP[0]', 'MDAP[rnd]');
@@ -90,8 +90,8 @@ function instruct(input, strategy, cvt, padding) {
 
 	var padding = padding || 0;
 
-	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER) + padding;
-	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER) + padding;
+	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER, padding);
+	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER, padding);
 
 	var glyph = findStems(parseSFD(input), strategy);
 	// if(!glyph.stems.length) return;

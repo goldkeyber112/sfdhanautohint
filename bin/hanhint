@@ -87,7 +87,7 @@ function createCvt(src, padding){
 	return cvt;
 };
 
-var cvt = createCvt([]);
+var cvt = createCvt([], argv.CVT_PADDING);
 if(argv.use_cvt) cvt = JSON.parse(fs.readFileSync(argv.usd_cvt, 'utf-8')).cvt
 
 var curChar = null;
@@ -124,7 +124,7 @@ rl.on('line', function(line) {
 		if(curChar){
 			if(!argv.silent && n % (argv.verbose ? 1: 100) === 0) process.stderr.write("[Progress] ".yellow + "Hinting /" + curChar.id + ' of ' + (argv._[0] || '(stdin)').green + '\n')
 			if(!argv.just_modify_cvt) {
-				var instructions = instruct(curChar.input, strategy, cvt, argv.ADD_CVT_PADDING)
+				var instructions = instruct(curChar.input, strategy, cvt, argv.CVT_PADDING)
 				if(instructions) buf += "TtInstrs:\n" + instructions + "\nEndTTInstrs\n";
 			}
 			n++;
