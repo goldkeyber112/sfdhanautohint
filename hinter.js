@@ -515,15 +515,22 @@ function hint(glyph, ppem, strategy) {
 					stem.low[k][p].touched = true;
 					if(k === 0) {
 						stem.low[k][p].keypoint = true;
-						if(stem.touchwidth >= round(stem.width) && Math.abs(stem.ytouch - stem.touchwidth - pixelBottom) < 1 && stem.width >= MIN_TOUCHED_STEM_WIDTH * uppx) {
+						if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= MIN_TOUCHED_STEM_WIDTH * uppx) {
+							if(atGlyphBottom(stem)) {
+								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
+								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx]
+							} else {
+								bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx];
+							}
 							stem.touchwidth = stem.width;
-							topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, pixelBottom]
-							bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx]
-						} else if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= MIN_TOUCHED_STEM_WIDTH * uppx) {
-							stem.touchwidth = stem.width;
-							bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx]
+						} else {
+							if(atGlyphBottom(stem)) {
+								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
+								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
+							} else {
+								bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
+							}							
 						}
-						else bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
 					} else {
 						bottomaligns.push(['ALIGN0', stem.low[0][0], stem.low[k][0]])
 					}
