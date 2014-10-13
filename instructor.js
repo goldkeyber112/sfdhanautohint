@@ -20,23 +20,45 @@ function pushargs(tt){
 	}
 };
 
+function initialMDRPs(actions){
+	var tt = [];
+	var args = [];
+	var movements = [];
+	for(var k = 0; k < actions.length; k++){
+		args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
+		movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+	};
+	if(args.length) {
+		pushargs(tt, args);
+		return tt.concat(movements.reverse());
+	} else {
+		return []
+	}
+};
 function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 	var tt = [];
 	var args = [];
 	var movements = [];
 	padding = padding || 0;
 	for(var k = 0; k < actions.length; k++){
-		if(actions[k].bottomkey.length > 3) {
-			var cvtwidth = -Math.round(upm / ppem * (actions[k].bottomkey[3] | 0));
-			var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
-			var cvtj = cvt.indexOf(cvtwidth, padding)
-			if(cvtj >= 0) {
-				args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
-				movements.push('MIRP[0]', 'MDAP[rnd]');
+		if(actions[k].bottomkey.length > 4) {
+			var touchedStemWidthPixels = (actions[k].bottomkey[4] || 0);
+			var originalStemWidthPixels = (actions[k].bottomkey[3] || 0);
+			if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
+				// args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
+				// movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
 			} else {
-				args.push(actions[k].bottomkey[2].id, msirpwidth, actions[k].topkey[1].id);
-				movements.push('MSIRP[0]', 'MDAP[rnd]');
-			}
+				var cvtwidth = -Math.round(upm / ppem * touchedStemWidthPixels);
+				var cvtj = cvt.indexOf(cvtwidth, padding);
+				if(cvtj >= 0) {
+					args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
+					movements.push('MIRP[0]', 'MDAP[rnd]');
+				} else {
+					var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
+					args.push(actions[k].bottomkey[2].id, msirpwidth, actions[k].topkey[1].id);
+					movements.push('MSIRP[0]', 'MDAP[rnd]');
+				}				
+			};
 		} else {
 			args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
 			movements.push('MDRP[0]', 'MDAP[rnd]');
@@ -95,17 +117,31 @@ function instruct(input, strategy, cvt, padding) {
 
 	var glyph = findStems(parseSFD(input), strategy);
 	// if(!glyph.stems.length) return;
-	var tt = ['SVTCA[y-axis]'];
+	var tt = ['SVTCA[y-axis]', 'RTG'];
 
 	// Hint for bluezone alignments
 	var h0 = hint(glyph, upm, strategy).instructions;
+	
+	// Microsoft eats my deltas, i have to add additional MDAPs
+	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
+	if(h0.roundingStems.length) {
+		var initialTouchArgs = [];
+		var initialTouches = [];
+		for(var k = 0; k < h0.roundingStems.length; k++){
+			initialTouchArgs.push(h0.roundingStems[k].topkey[1].id);
+			initialTouches.push('MDAP[0]');
+		};
+		pushargs(tt, initialTouchArgs);
+		tt = tt.concat(initialTouches);
+	};
+
+	// Blue zone alignment instructions
 	if(h0.blueZoneAlignments.length) {
 		var bluetops = [], bluebottoms = [];
 		for(var k = 0; k < h0.blueZoneAlignments.length; k++){
 			if(h0.blueZoneAlignments[k][0] === 'BLUETOP') bluetops.push(h0.blueZoneAlignments[k][1]);
 			else bluebottoms.push(h0.blueZoneAlignments[k][1]);
 		}
-		tt.push('RTG');
 		for(var k = 0; k < bluetops.length; k++){
 			pushargs(tt, [bluetops[k].id, cvtTopID]);
 			tt.push('MIAP[rnd]');
@@ -114,46 +150,62 @@ function instruct(input, strategy, cvt, padding) {
 			pushargs(tt, [bluebottoms[k].id, cvtBottomID]);
 			tt.push('MIAP[rnd]');
 		}
-	}
+	};
+
+	var deltaInstructions = [];
+	pushargs(deltaInstructions, [2, PPEM_MIN]);
+	deltaInstructions.push('SDB', 'SDS');
+
+	var mirps = [];
 
 	if(glyph.stems.length) {
-		tt.push('MPPEM');
+		mirps.push('MPPEM');
 		for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
 			var instrs = hint(glyph, ppem, strategy).instructions;
-			tt.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
-			var biases = {}
+			var deltas = [];
 			for(var k = 0; k < instrs.roundingStems.length; k++){
 				var tk = instrs.roundingStems[k].topkey;
 				var original = tk[2]
 				var rounded = rtg(original, upm, ppem);
 				var target = tk[3];
-				var bias = 64 * Math.round((target - rounded) / (upm / ppem));
+				var d = 4 * Math.round((target - rounded) / (upm / ppem));
 				var roundBias = (original - rounded) / (upm / ppem);
 				if(roundBias >= 0.48 && roundBias <= 0.52) {
 					// RTG rounds TK down, but it is close to the middle
-					bias -= 16
+					d -= 1
 				} else if(roundBias >= -0.52 && roundBias <= -0.48) {
-					bias += 16
-				}
-				if(!biases[bias]) biases[bias] = []
-				biases[bias].push(instrs.roundingStems[k])
+					d += 1
+				};
+
+				if(d) deltas.push({id: tk[1].id, delta: d});
 			};
-			tt.push('RTG');
-			// SHPIX instructions
-			for(var bias in biases) {
-				if(bias - 0) {
-					pushargs(tt, biases[bias].map(function(s){ return s.topkey[1].id }));
-					pushargs(tt, [bias - 0, biases[bias].length]);
-					tt.push('SLOOP', 'SHPIX')
-				}
+			if(deltas.length) {
+				var deltapArgs = [];
+				for(var j = 0; j < deltas.length; j++){
+					var point = deltas[j].id;
+					var d = deltas[j].delta;
+					if(d <= 8 && d >= -8) {
+						var selector = (d > 0 ? d + 7 : d + 8);
+						var deltappem = (ppem - PPEM_MIN) % 16;
+						deltapArgs.push(deltappem * 16 + selector, point)
+					}
+				};
+				deltapArgs.push(deltas.length)
+				pushargs(deltaInstructions, deltapArgs);
+				deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - PPEM_MIN) / 16)))
+			};
+
+			var ppemSpecificMRPs = roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt, padding);
+			if(ppemSpecificMRPs.length) {
+				mirps.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
+				mirps = mirps.concat(ppemSpecificMRPs);
+				mirps.push('EIF');				
 			}
-			tt = tt.concat(roundingStemInstrs(glyph, upm, ppem, instrs.roundingStems, cvt, padding));
-			tt.push('EIF');
 		};		
-	}
-	
+	};
+
 	// Interpolations
-	tt = tt.concat(ipInstrs(h0.interpolations));
+	tt = tt.concat(deltaInstructions, initialMDRPs(h0.roundingStems), mirps, ipInstrs(h0.interpolations));
 	// Hint for in-stem alignments
 	var ials = [], stemops = h0.roundingStems.concat(h0.alignedStems);
 	for(var k = 0; k < stemops.length; k++){
