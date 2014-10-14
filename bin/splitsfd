@@ -4,7 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var stream = require('stream');
 var readline = require('readline');
-var argv = require('optimist').argv;
+var argv = require('yargs').argv;
 var devnull = require('dev-null');
 
 var instream = argv._[0] ? fs.createReadStream(argv._[0]) : process.stdin;

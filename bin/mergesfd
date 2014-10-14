@@ -3,7 +3,7 @@ var fs = require('fs');
 var path = require('path');
 var stream = require('stream');
 var readline = require('readline');
-var argv = require('optimist').argv;
+var argv = require('yargs').argv;
 var CombinedStream = require('combined-stream');
 var glob = require("glob")
 

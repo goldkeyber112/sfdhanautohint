@@ -4,7 +4,7 @@
   "version": "0.0.3",
   "main": "./instructor.js",
   "dependencies": {
-    "optimist": "",
+    "yargs": "",
     "combined-stream": "",
     "glob": "",
     "dev-null": ""

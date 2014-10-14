@@ -5,7 +5,35 @@ var stream = require('stream');
 var instruct = require('../instructor').instruct;
 var devnull = require('dev-null');
 var colors = require('colors');
-var argv = require('optimist').argv;
+
+var yargs = require('yargs')
+	.alias('o', 'output-into')
+	.alias('?', 'help')
+	.alias('silent', 'quiet')
+	.alias('verbose', 'v')
+	.boolean(['just_modify_cvt', 'silent', 'verbose'])
+	.usage('$0 [Options] [<input.sfd>] [-o <output.sfd>]\n\
+	       |Replace gridfit instructions in quadtaric SFD input file and rewrite the output file.\n\
+	       |When the output file is missing, standard output is used instead.\n\
+	       |When the input file is missing, standard input is used isntead.\n\
+	       |\n\
+	       |The new gridfits are optimized for Han characters.\n\
+	       |'.replace(/^\s*\|/gm, ''))
+	.describe('help', 'Displays this help.')
+	.describe('o', 'Output sfd path. When absent, the result sfd is written to STDOUT.')
+	.describe('UPM', 'Specify the units-per-em (upm) value for the input. Default: 1000.')
+	.describe('PPEM_MIN', 'Switch hints below this PPEM value. Default: 10.')
+	.describe('PPEM_MAX', 'Switch hints above this PPEM value. Default: 36.')
+	.describe('silent', 'Run in quiet mode')
+	.describe('verbose', 'Run in verbose mode')
+	.describe('just_modify_cvt', 'Don\'t change any Truetype insructions, just append items into the cvt table.')
+
+var argv = yargs.argv;
+
+if(argv.help) {
+	yargs.showHelp();
+	process.exit(0)
+}
 
 var instream = argv._[0] ? fs.createReadStream(argv._[0]): process.stdin;
 var outstream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }): process.stdout;
@@ -122,7 +150,9 @@ rl.on('line', function(line) {
 		curChar.input += line + '\n';
 	} else if(/^EndChar/.test(line)) {
 		if(curChar){
-			if(!argv.silent && n % (argv.verbose ? 1: 100) === 0) process.stderr.write("[Progress] ".yellow + "Hinting /" + curChar.id + ' of ' + (argv._[0] || '(stdin)').green + '\n')
+			if(!argv.silent && n % (argv.verbose ? 1: 100) === 0) {
+				process.stderr.write("[Progress] ".yellow + "Hinting /" + curChar.id + ' of ' + (argv._[0] || '(stdin)').green + '\n')
+			};
 			if(!argv.just_modify_cvt) {
 				var instructions = instruct(curChar.input, strategy, cvt, argv.CVT_PADDING)
 				if(instructions) buf += "TtInstrs:\n" + instructions + "\nEndTTInstrs\n";
