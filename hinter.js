@@ -448,12 +448,12 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < stems.length; j++) {
 			properWidths[j] = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH)
 		};
-		// Allocate stem width downward
-		for(var j = 0; j < stems.length; j++) {
+
+		function allocateDown(j){
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var wr = properWidths[j];
 			var w = Math.min(wr, round(stems[j].touchwidth + sb - uppx));
-			if(w < uppx + 1) continue;
+			if(w < uppx + 1) return;
 			if(sb + stems[j].touchwidth > wr + uppx - 1 && stems[j].ytouch - wr >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - wr >= pixelBottom - 1) {
 				stems[j].touchwidth = wr;
 				allocated[j] = true;
@@ -462,13 +462,12 @@ function hint(glyph, ppem, strategy) {
 				allocated[j] = true;
 			}
 		};
-		// Allocate stem width upward
-		for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]){
+		function allocateUp(j){
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var sa = spaceAbove(stems, overlaps, j, pixelTop + uppx);
 			var wr = properWidths[j];
 			var w = Math.min(wr, round(stems[j].touchwidth + sb + sa - 2 * uppx));
-			if(w < uppx + 1) continue;
+			if(w < uppx + 1) return;
 			if(sa > 1.75 * uppx && stems[j].ytouch < avaliables[j].high * uppx && (atGlyphTop(stems[j]) || stems[j].ytouch < ytouchmax)) {
 				if(sb + stems[j].touchwidth > wr - 1 && stems[j].ytouch - wr >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - wr >= pixelBottom - 1) {
 					stems[j].touchwidth = wr;
@@ -480,7 +479,15 @@ function hint(glyph, ppem, strategy) {
 					allocated[j] = true;
 				}
 			}
-		};
+		}
+
+		// Allowcate top and bottom stems
+		for(var j = 0; j < stems.length; j++) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateDown(j) };		
+		for(var j = stems.length - 1; j >= 0; j--) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateUp(j) };		
+		// Allocate stem width downward
+		for(var j = 0; j < stems.length; j++) if(!(atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]) { allocateDown(j) };
+		// Allocate stem width upward
+		for(var j = stems.length - 1; j >= 0; j--) if(!(atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]) { allocateUp(j) };
 	};
 	var instructions = {
 		roundingStems : [],

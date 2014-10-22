@@ -13,7 +13,7 @@ function pushargs(tt){
 	if(shortpush){
 		tt.push('PUSH' + datatype + '_' + vals.length);
 		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
-	} else if(vals.length < 256) {
+	} else if(vals.length < 250) {
 		tt.push('NPUSH' + datatype);
 		tt.push(vals.length);
 		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
@@ -201,7 +201,7 @@ function instruct(input, strategy, cvt, padding) {
 				mirps = mirps.concat(ppemSpecificMRPs);
 				mirps.push('EIF');				
 			}
-		};		
+		};
 	};
 
 	// Interpolations
@@ -211,13 +211,13 @@ function instruct(input, strategy, cvt, padding) {
 	for(var k = 0; k < stemops.length; k++){
 		if(stemops[k].topaligns.length) ials.push(stemops[k].topaligns)
 		if(stemops[k].bottomaligns.length) ials.push(stemops[k].bottomaligns)
-	}
+	};
 	ials.sort(function(p, q){ return p.length - q.length });
 	var looplen = 0
 	for(var k = 0; k < ials.length; k++){
 		pushargs(tt, ials[k].map(function(x){ return x[2].id }), [ials[k][0][1].id, ials[k].length])
 		tt.push('SLOOP', 'SRP0', 'ALIGNRP')
-	}
+	};
 
 	tt.push('IUP[y]');
 	return tt.join("\n")

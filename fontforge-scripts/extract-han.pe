@@ -1,6 +1,13 @@
 Print("Reading Font...")
 Open($1);
 Print("Removing Instructions...")
+SelectAll();
+ClearHints();
+ClearInstrs();
+ClearTable('fpgm');
+ClearTable('prep');
+ClearTable('cvt ');
+ClearTable('maxp');
 SelectNone();
 SelectMoreIf(UCodePoint(0x2e80), UCodePoint(0x2fff));
 SelectMoreIf(UCodePoint(0x3040), UCodePoint(0x30ff));
