@@ -215,8 +215,9 @@ function instruct(input, strategy, cvt, padding) {
 	ials.sort(function(p, q){ return p.length - q.length });
 	var looplen = 0
 	for(var k = 0; k < ials.length; k++){
-		pushargs(tt, ials[k].map(function(x){ return x[2].id }), [ials[k][0][1].id, ials[k].length])
-		tt.push('SLOOP', 'SRP0', 'ALIGNRP')
+		pushargs(tt, ials[k].map(function(x){ return x[2].id }), [ials[k][0][1].id])
+		tt.push('SRP0');
+		tt = tt.concat(ials[k].map(function(x){ return 'MDRP[0]' }));
 	};
 
 	tt.push('IUP[y]');
