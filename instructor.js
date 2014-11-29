@@ -26,7 +26,7 @@ function initialMDRPs(actions){
 	var movements = [];
 	for(var k = 0; k < actions.length; k++){
 		args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
-		movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+		movements.push('MDRP[0]', 'MDAP[rnd]');
 	};
 	if(args.length) {
 		pushargs(tt, args);
@@ -45,8 +45,8 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 			var touchedStemWidthPixels = (actions[k].bottomkey[4] || 0);
 			var originalStemWidthPixels = (actions[k].bottomkey[3] || 0);
 			if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
-				// args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
-				// movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+				args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
+				movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
 			} else {
 				var cvtwidth = -Math.round(upm / ppem * touchedStemWidthPixels);
 				var cvtj = cvt.indexOf(cvtwidth, padding);
@@ -54,14 +54,15 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 					args.push(actions[k].bottomkey[2].id, cvtj, actions[k].topkey[1].id);
 					movements.push('MIRP[0]', 'MDAP[rnd]');
 				} else {
-					var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
-					args.push(actions[k].bottomkey[2].id, msirpwidth, actions[k].topkey[1].id);
-					movements.push('MSIRP[0]', 'MDAP[rnd]');
+				 	var msirpwidth = -((actions[k].bottomkey[3] | 0) * 64);
+				 	args.push(actions[k].bottomkey[2].id, msirpwidth, actions[k].topkey[1].id);
+				 	movements.push('MSIRP[0]', 'MDAP[rnd]');
 				}				
 			};
 		} else {
-			args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
-			movements.push('MDRP[0]', 'MDAP[rnd]');
+			// pass
+			// args.push(actions[k].bottomkey[2].id, actions[k].topkey[1].id);
+			// movements.push('MDRP[0]', 'MDAP[rnd]');
 		}
 	};
 	if(args.length) {
@@ -160,7 +161,7 @@ function instruct(input, strategy, cvt, padding) {
 
 	if(glyph.stems.length) {
 		mirps.push('MPPEM');
-		for(var ppem = PPEM_MIN; ppem < PPEM_MAX; ppem++){
+		for(var ppem = PPEM_MIN; ppem <= PPEM_MAX; ppem++){
 			var instrs = hint(glyph, ppem, strategy).instructions;
 			var deltas = [];
 			for(var k = 0; k < instrs.roundingStems.length; k++){

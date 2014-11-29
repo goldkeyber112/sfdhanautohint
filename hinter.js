@@ -1,44 +1,47 @@
 function hint(glyph, ppem, strategy) {
-	var upm = strategy.UPM || 1000;
+	var upm							= strategy.UPM || 1000;
 
-	var MIN_STEM_WIDTH = strategy.MIN_STEM_WIDTH;
-	var MAX_STEM_WIDTH = strategy.MAX_STEM_WIDTH;
-	var STEM_SIDE_MIN_RISE = strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
-	var STEM_CENTER_MIN_RISE = strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
-	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
-	var STEM_CENTER_MIN_DESCENT = strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
+	var MIN_STEM_WIDTH         		= strategy.MIN_STEM_WIDTH;
+	var MAX_STEM_WIDTH         		= strategy.MAX_STEM_WIDTH;
+	var STEM_SIDE_MIN_RISE     		= strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_RISE   		= strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
+	var STEM_SIDE_MIN_DESCENT  		= strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_DESCENT		= strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
 
-	var POPULATION_LIMIT = strategy.POPULATION_LIMIT || 200;
-	var CHILDREN_LIMIT = strategy.CHILDREN_LIMIT || 100;
-	var EVOLUTION_STAGES = strategy.EVOLUTION_STAGES || 15;
-	var MUTANT_PROBABLITY = strategy.MUTANT_PROBABLITY || 0.4;
-	var ELITE_COUNT = strategy.ELITE_COUNT || 10;
+	var POPULATION_LIMIT 			= strategy.POPULATION_LIMIT || 200;
+	var CHILDREN_LIMIT   			= strategy.CHILDREN_LIMIT || 100;
+	var EVOLUTION_STAGES 			= strategy.EVOLUTION_STAGES || 15;
+	var MUTANT_PROBABLITY			= strategy.MUTANT_PROBABLITY || 0.4;
+	var ELITE_COUNT      			= strategy.ELITE_COUNT || 10;
 
-	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
+	var blueFuzz					= strategy.BLUEZONE_WIDTH || 15;
 
-	var WIDTH_FACTOR_X = strategy.WIDTH_FACTOR_X || 2;
-	var MIN_ADJUST_PPEM = strategy.MIN_ADJUST_PPEM || 16;
-	var MAX_ADJUST_PPEM = strategy.MAX_ADJUST_PPEM || 32;
-	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
+	var WIDTH_FACTOR_X             	= strategy.WIDTH_FACTOR_X || 2;
+	var MIN_ADJUST_PPEM            	= strategy.MIN_ADJUST_PPEM || 16;
+	var MAX_ADJUST_PPEM            	= strategy.MAX_ADJUST_PPEM || 32;
+	var COLLISION_MIN_OVERLAP_RATIO	= strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
-	var MIN_TOUCHED_STEM_WIDTH = strategy.MIN_TOUCHED_STEM_WIDTH || 1;
-	var LOW_PPEM_LIMIT = strategy.LOW_PPEM_LIMIT || 14;
-	var FORCE_LOW_PPEM_LIMIT = strategy.FORCE_LOW_PPEM_LIMIT || 13;
-	var MIN_LOW_PPEM_STEM_WIDTH = strategy.MIN_LOW_PPEM_STEM_WIDTH || 1;
+	var PPEM_STEM_WIDTH_GEARS		= strategy.PPEM_STEM_WIDTH_GEARS || [[0, 1, 1], [13, 1, 2], [21, 2, 2], [27, 2, 3], [32, 3, 3]];
+	var WIDTH_GEAR_LOW, WIDTH_GEAR_HIGH = 999;
+	for(var j = 0; j < PPEM_STEM_WIDTH_GEARS.length; j++){
+		WIDTH_GEAR_LOW = PPEM_STEM_WIDTH_GEARS[j][1];
+		if(j + 1 < PPEM_STEM_WIDTH_GEARS.length && PPEM_STEM_WIDTH_GEARS[j][0] <= ppem && PPEM_STEM_WIDTH_GEARS[j + 1][0] > ppem) {
+			WIDTH_GEAR_HIGH = PPEM_STEM_WIDTH_GEARS[j][2];
+			break;
+		}
+	};
 
-	if(ppem <= LOW_PPEM_LIMIT) MIN_TOUCHED_STEM_WIDTH = MIN_LOW_PPEM_STEM_WIDTH
-
-	var ABLATION_IN_RADICAL = strategy.ABLATION_IN_RADICAL || 1;
-	var ABLATION_RADICAL_EDGE = strategy.ABLATION_RADICAL_EDGE || 2;
-	var ABLATION_GLYPH_EDGE = strategy.ABLATION_GLYPH_EDGE || 15;
-	var ABLATION_GLYPH_HARD_EDGE = strategy.ABLATION_GLYPH_HARD_EDGE || 25;
+	var ABLATION_IN_RADICAL     	= strategy.ABLATION_IN_RADICAL || 1;
+	var ABLATION_RADICAL_EDGE   	= strategy.ABLATION_RADICAL_EDGE || 2;
+	var ABLATION_GLYPH_EDGE     	= strategy.ABLATION_GLYPH_EDGE || 15;
+	var ABLATION_GLYPH_HARD_EDGE	= strategy.ABLATION_GLYPH_HARD_EDGE || 25;
 	
 	var COEFF_PORPORTION_DISTORTION = strategy.COEFF_PORPORTION_DISTORTION || 4;
 
-	var BLUEZONE_BOTTOM_CENTER = strategy.BLUEZONE_BOTTOM_CENTER || -75;
-	var BLUEZONE_TOP_CENTER = strategy.BLUEZONE_TOP_CENTER || 840;
-	var BLUEZONE_BOTTOM_LIMIT = strategy.BLUEZONE_BOTTOM_LIMIT || -65;
-	var BLUEZONE_TOP_LIMIT = strategy.BLUEZONE_TOP_LIMIT || 825;
+	var BLUEZONE_BOTTOM_CENTER		= strategy.BLUEZONE_BOTTOM_CENTER || -75;
+	var BLUEZONE_TOP_CENTER   		= strategy.BLUEZONE_TOP_CENTER || 840;
+	var BLUEZONE_BOTTOM_LIMIT 		= strategy.BLUEZONE_BOTTOM_LIMIT || -65;
+	var BLUEZONE_TOP_LIMIT    		= strategy.BLUEZONE_TOP_LIMIT || 825;
 
 	var DONT_ADJUST_STEM_WIDTH = strategy.DONT_ADJUST_STEM_WIDTH || false;
 
@@ -90,12 +93,12 @@ function hint(glyph, ppem, strategy) {
 
 	function clamp(x){ return Math.min(1, Math.max(0, x)) }
 	function xclamp(x, low, high){ return Math.min(high, Math.max(low, x)) }
-	function calculateWidth(w, mstw){
-		if(ppem <= FORCE_LOW_PPEM_LIMIT) return MIN_LOW_PPEM_STEM_WIDTH * uppx;
-		else if(w < mstw * uppx) return mstw * uppx;
-		else if (!DONT_ADJUST_STEM_WIDTH && w < (1 + mstw) * uppx) return uppx * Math.round(WIDTH_FACTOR_X 
-			* (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)));
-		else return Math.round(w / uppx) * uppx;
+	function calculateWidth(w){
+		if(w <= WIDTH_GEAR_LOW * uppx) return WIDTH_GEAR_LOW * uppx;
+		else if (!DONT_ADJUST_STEM_WIDTH && w < Math.min(WIDTH_GEAR_LOW + 1, WIDTH_GEAR_HIGH) * uppx) 
+			return uppx * Math.max(WIDTH_GEAR_LOW, Math.min(WIDTH_GEAR_HIGH, Math.round(
+				WIDTH_FACTOR_X * (w / uppx / WIDTH_FACTOR_X + clamp((ppem - MIN_ADJUST_PPEM) / (MAX_ADJUST_PPEM - MIN_ADJUST_PPEM)) * (1 - w / uppx / WIDTH_FACTOR_X)))));
+		else return Math.max(WIDTH_GEAR_LOW, Math.min(WIDTH_GEAR_HIGH, Math.round(w / uppx))) * uppx;
 	}
 
 	function atRadicalTop(stem){
@@ -446,7 +449,7 @@ function hint(glyph, ppem, strategy) {
 		var allocated = [];
 		var properWidths = [];
 		for(var j = 0; j < stems.length; j++) {
-			properWidths[j] = calculateWidth(stems[j].width, MIN_TOUCHED_STEM_WIDTH)
+			properWidths[j] = calculateWidth(stems[j].width)
 		};
 
 		function allocateDown(j){
@@ -482,7 +485,7 @@ function hint(glyph, ppem, strategy) {
 		}
 
 		// Allowcate top and bottom stems
-		for(var j = 0; j < stems.length; j++) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateDown(j) };		
+		for(var j = 0; j < stems.length; j++) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateDown(j) };   		
 		for(var j = stems.length - 1; j >= 0; j--) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateUp(j) };		
 		// Allocate stem width downward
 		for(var j = 0; j < stems.length; j++) if(!(atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]) { allocateDown(j) };
@@ -500,6 +503,9 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < stems.length; j++){
 			var stem = stems[j], w = stem.touchwidth;
 			var topkey = null, bottomkey = null, topaligns = [], bottomaligns = [];
+			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
+			var sa = spaceAbove(stems, overlaps, j, pixelTop + uppx);
+
 			// Top edge of a stem
 			for(var k = 0; k < stem.high.length; k++) for(var p = 0; p < stem.high[k].length; p++) {
 				if(p === 0) {
@@ -515,6 +521,7 @@ function hint(glyph, ppem, strategy) {
 					stem.high[k][p].donttouch = true;
 				}
 			};
+
 			// Bottom edge of a stem
 			for(var k = 0; k < stem.low.length; k++) for(var p = 0; p < stem.low[k].length; p++) {
 				if(p === 0) {
@@ -522,7 +529,10 @@ function hint(glyph, ppem, strategy) {
 					stem.low[k][p].touched = true;
 					if(k === 0) {
 						stem.low[k][p].keypoint = true;
-						if(stem.touchwidth >= round(stem.width) && stem.ytouch - stem.width >= pixelBottom && stem.width >= MIN_TOUCHED_STEM_WIDTH * uppx) {
+						var canUseMdrp = stem.touchwidth >= stem.width && stem.touchwidth - stem.width <= 0.48 * uppx
+						              || stem.width > stem.touchwidth && stem.width - stem.touchwidth <= 0.48 * uppx && (sb >= 1.75 * uppx || atGlyphBottom(stem) && sa >= 1.75 * uppx);
+
+						if(canUseMdrp && (stem.ytouch - stem.width >= pixelBottom || atGlyphBottom(stem))) {
 							if(atGlyphBottom(stem)) {
 								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
 								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx]
@@ -535,7 +545,7 @@ function hint(glyph, ppem, strategy) {
 								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
 								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
 							} else {
-								bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
+							 	bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
 							}							
 						}
 					} else {

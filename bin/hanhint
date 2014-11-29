@@ -58,7 +58,7 @@ var strategy = {
 	ELITE_COUNT: 10,
 	WIDTH_FACTOR_X: 2,
 	MIN_ADJUST_PPEM: 16,
-	MAX_ADJUST_PPEM: 36,
+	MAX_ADJUST_PPEM: 37,
 	MIN_TOUCHED_STEM_WIDTH: 2,
 	LOW_PPEM_LIMIT: 20,
 	FORCE_LOW_PPEM_LIMIT: 13,
@@ -82,7 +82,8 @@ var strategy = {
 	COEFF_S: 10000,
 	COEFF_A_SYMMETRY: -40,
 	COLLISION_MIN_OVERLAP_RATIO: 0.2,
-	DONT_ADJUST_STEM_WIDTH: false
+	DONT_ADJUST_STEM_WIDTH: false,
+	PPEM_STEM_WIDTH_GEARS: [[0, 1, 1], [13, 1, 2], [21, 2, 2], [27, 2, 3], [32, 3, 3]]
 };
 
 for(var prop in strategy) {
@@ -90,6 +91,12 @@ for(var prop in strategy) {
 		strategy[prop] = isFinite(argv[prop] - 0) ? argv[prop] : strategy[prop]
 	}
 };
+if(argv.gears) {
+	try {
+		strategy.PPEM_STEM_WIDTH_GEARS = JSON.parse(argv.gears)
+	}catch(e){
+	}
+}
 
 function pushWhenAbsent(a, x){
 	a.push(x)
