@@ -492,222 +492,60 @@ function hint(glyph, ppem, strategy) {
 		// Allocate stem width upward
 		for(var j = stems.length - 1; j >= 0; j--) if(!(atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]) { allocateUp(j) };
 	};
-	var instructions = {
-		roundingStems : [],
-		alignedStems : [],
-		blueZoneAlignments: [],
-		interpolations: []
-	};
+	var instructions = []
 	// Touching procedure
 	function touchStemPoints(stems) {
 		for(var j = 0; j < stems.length; j++){
 			var stem = stems[j], w = stem.touchwidth;
-			var topkey = null, bottomkey = null, topaligns = [], bottomaligns = [];
 			var sb = spaceBelow(stems, overlaps, j, pixelBottom - uppx);
 			var sa = spaceAbove(stems, overlaps, j, pixelTop + uppx);
 
-			// Top edge of a stem
-			for(var k = 0; k < stem.high.length; k++) for(var p = 0; p < stem.high[k].length; p++) {
-				if(p === 0) {
-					stem.high[k][p].ytouch = stem.ytouch
-					stem.high[k][p].touched = true;
-					if(k === 0) {
-						stem.high[k][p].keypoint = true;
-						topkey = ['ROUND', stem.high[0][0], stem.high[0][0].yori, stem.ytouch]
-					} else {
-						topaligns.push(['ALIGN0', stem.high[0][0], stem.high[k][0]])
-					}
-				} else {
-					stem.high[k][p].donttouch = true;
-				}
-			};
+			var pos = ['ROUND', stem.posKey.id, stem.posKey.yori, stem.posKeyAtTop ? stem.ytouch : stem.ytouch - stem.touchwidth];
+			var adv;
 
-			// Bottom edge of a stem
-			for(var k = 0; k < stem.low.length; k++) for(var p = 0; p < stem.low[k].length; p++) {
-				if(p === 0) {
-					stem.low[k][p].ytouch = stem.ytouch - w;
-					stem.low[k][p].touched = true;
-					if(k === 0) {
-						stem.low[k][p].keypoint = true;
-						var canUseMdrp = stem.touchwidth >= stem.width && stem.touchwidth - stem.width <= 0.48 * uppx
-						              || stem.width > stem.touchwidth && stem.width - stem.touchwidth <= 0.48 * uppx && (sb >= 1.75 * uppx || atGlyphBottom(stem) && sa >= 1.75 * uppx);
+			var canUseMdrp = stem.touchwidth >= stem.width && stem.touchwidth - stem.width <= 0.48 * uppx
+			              || stem.width > stem.touchwidth && stem.width - stem.touchwidth <= 0.48 * uppx && (sb >= 1.75 * uppx || stem.posKeyAtTop && sa >= 1.75 * uppx);
 
-						if(canUseMdrp && (stem.ytouch - stem.width >= pixelBottom || atGlyphBottom(stem))) {
-							if(atGlyphBottom(stem)) {
-								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
-								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx]
-							} else {
-								bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx];
-							}
-							stem.touchwidth = stem.width;
-						} else {
-							if(atGlyphBottom(stem)) {
-								topkey = ['ROUND', stem.low[0][0], stem.low[0][0].yori, stem.ytouch - stem.touchwidth]
-								bottomkey = ['ALIGNW', stem.low[0][0], stem.high[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
-							} else {
-							 	bottomkey = ['ALIGNW', stem.high[0][0], stem.low[0][0], stem.width / uppx, Math.round(stem.touchwidth / uppx)]
-							}							
-						}
-					} else {
-						bottomaligns.push(['ALIGN0', stem.low[0][0], stem.low[k][0]])
-					}
-				} else {
-					stem.low[k][p].donttouch = true;
-				}
-			};
-			instructions.roundingStems.push({
-				topkey: topkey,
-				bottomkey: bottomkey,
-				topaligns: topaligns,
-				bottomaligns: bottomaligns
-			})
-		}
-	}
-
-	function touchBlueZonePoints(contours) {
-		for(var j = 0; j < contours.length; j++) {
-			for(var k = 0; k < contours[j].points.length - 1; k++){
-				var point = contours[j].points[k];
-				if(point.ytouch <= BLUEZONE_BOTTOM_LIMIT && point.yExtrema && !point.touched && !point.donttouch){
-					point.touched = true;
-					point.ytouch = pixelBottom;
-					point.keypoint = true;
-					instructions.blueZoneAlignments.push(['BLUEBOTTOM', point, pixelTop])
-				}
-				if(point.ytouch >= BLUEZONE_TOP_LIMIT && point.yExtrema && !point.touched && !point.donttouch){
-					point.touched = true;
-					point.ytouch = pixelTop;
-					point.keypoint = true;
-					instructions.blueZoneAlignments.push(['BLUETOP', point, pixelTop])
-				}
-			}
-		}
-	}
-	function interpolate(a, b, c, touch){
-		c.touched = touch;
-		if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
-		else if(c.yori >= b.yori)  c.ytouch = c.yori - b.yori + b.ytouch;
-		else c.ytouch = (c.yori - a.yori) / (b.yori - a.yori) * (b.ytouch - a.ytouch) + a.ytouch;
-		if(touch) {
-			instructions.interpolations.push(['IP', a, b, c])
-		}
-	}
-	function BY_YORI(p, q){ return p.yori - q.yori }
-
-	function interpolateByKeys(pts, keys){
-		for(var k = 0; k < pts.length; k++) if(!pts[k].touched) {
-			for(var m = 1; m < keys.length; m++) {
-				if(keys[m].yori > pts[k].yori && keys[m - 1].yori <= pts[k].yori) {
-					interpolate(keys[m - 1], keys[m], pts[k], 'IP');
-					break;
-				}
-			}
-		}
-	}
-	function interpolatedUntouchedTopBottomPoints(contours) {
-		var glyphKeypoints = [];
-		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
-			if(contours[j].points[k].touched && contours[j].points[k].keypoint) {
-				glyphKeypoints.push(contours[j].points[k]);
-			}
-		}
-		glyphKeypoints = glyphKeypoints.sort(BY_YORI);
-
-		for(var j = 0; j < contours.length; j++) {
-			var contourpoints = contours[j].points
-			var contourKeypoints = contourpoints.filter(function(p){ return p.touched});
-			if(contourKeypoints.length >= 2) {
-				var k0 = contourpoints.indexOf(contourKeypoints[0]);
-				var keyk = 0;
-				for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
-					var k = k_ % contourpoints.length;
-					if(contourpoints[k] === contourKeypoints[keyk + 1]) {
-						keyk += 1;
-					} else if(contourpoints[k].yori >= contourKeypoints[keyk].yori && contourpoints[k].yori <= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori || contourpoints[k].yori <= contourKeypoints[keyk].yori && contourpoints[k].yori >= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori) {
-						contourpoints[k].donttouch = true;
-					}
-				}
-			}
-
-			var contourExtrema = [];
-			for(var k = 0; k < contours[j].points.length; k++) {
-				var point = contours[j].points[k]
-				if(point.yExtrema && !point.touched && !point.donttouch) {
-					contourExtrema.push(point);
-				}
-			};
-			if(contourKeypoints.length > 1) { interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI)) }
-			interpolateByKeys(contourExtrema, glyphKeypoints)
-		}
-	}
-	// IUPy interpolates untouched points just like TT instructions.
-	function IUPy(contours){
-		for(var j = 0; j < contours.length; j++){
-			var contour = contours[j];
-			var k = 0;
-			while(k < contour.points.length && !contour.points[k].touched) k++;
-			if(contour.points[k]) {
-				// Found a touched point in contour
-				var kleft = k, k0 = k;
-				var untoucheds = []
-				for(var k = 0; k <= contour.points.length; k++){
-					var ki = (k + k0) % contour.points.length;
-					if(contour.points[ki].touched){
-						var pleft = contour.points[kleft];
-						var pright = contour.points[ki];
-						var lower = pleft.yori < pright.yori ? pleft : pright
-						var higher = pleft.yori < pright.yori ? pright : pleft
-						for(var w = 0; w < untoucheds.length; w++) interpolate(lower, higher, untoucheds[w])
-						untoucheds = []
-						kleft = ki;
-					} else {
-						untoucheds.push(contour.points[ki])
-					}
-				}
-			}
-		}
-	}
-
-	function untouchAll(contours) {
-		for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
-			contours[j].points[k].touched = false;
-			contours[j].points[k].donttouch = false;
-			contours[j].points[k].ytouch = contours[j].points[k].yori;
-		}
-	};
-
-	untouchAll(contours);
-	(function(){
-		var y0 = avaliables.map(function(a){ return Math.round(a.center / uppx) });
-		var y0min = y0[0];
-		var y0max = y0[y0.length - 1];
-		for(var j = 0; j < stems.length; j++){
-			y0[j] = xclamp(Math.round(y0min + (y0max - y0min) * avaliables[j].proportion), avaliables[j].low, avaliables[j].high)
-		}
-		var og = new Organism(y0);
-		if(og.collidePotential <= 0) {
-			for(var j = 0; j < stems.length; j++){
-				stems[j].ytouch = og.gene[j] * uppx;
-				stems[j].touchwidth = uppx;
-				stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
-			}
-		} else {
-			initStemTouches(stems, glyph.radicals);
-			earlyUncollide(stems);
-			uncollide(stems);
-		}
-	})();
-	rebalance(stems);
-	allocateWidth(stems);
-	touchStemPoints(stems);
-	touchBlueZonePoints(contours);
-	interpolatedUntouchedTopBottomPoints(contours);
-	IUPy(contours);
-	
-	return {
-		contours: contours,
-		instructions: instructions
-	}
+  			if(canUseMdrp && (stem.ytouch - stem.width >= pixelBottom || atGlyphBottom(stem))) {
+  				var adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx];
+  			} else {
+  				var adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx, Math.round(stem.touchwidth / uppx)]
+  			}
+  			instructions.push({
+  				pos: pos,
+  				adv: adv
+  			})
+  		}
+  	};
+  	
+  	(function(){
+  		var y0 = avaliables.map(function(a){ return Math.round(a.center / uppx) });
+  		var y0min = y0[0];
+  		var y0max = y0[y0.length - 1];
+  		for(var j = 0; j < stems.length; j++){
+  			y0[j] = xclamp(Math.round(y0min + (y0max - y0min) * avaliables[j].proportion), avaliables[j].low, avaliables[j].high)
+  		}
+  		var og = new Organism(y0);
+  		if(og.collidePotential <= 0) {
+  			for(var j = 0; j < stems.length; j++){
+  				stems[j].ytouch = og.gene[j] * uppx;
+  				stems[j].touchwidth = uppx;
+  				stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
+  			}
+  		} else {
+  			initStemTouches(stems, glyph.radicals);
+  			earlyUncollide(stems);
+  			uncollide(stems);
+  		}
+  	})();
+  	rebalance(stems);
+  	allocateWidth(stems);
+  	touchStemPoints(stems);
+//	touchBlueZonePoints(contours);
+//	interpolatedUntouchedTopBottomPoints(contours);
+//	IUPy(contours);
+  	
+  	return instructions
 
 }
 
