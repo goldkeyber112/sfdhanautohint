@@ -50,6 +50,7 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 					args.push(actions[k].adv[2], cvtj, actions[k].pos[1]);
 					movements.push('MIRP[0]', 'MDAP[rnd]');
 				} else {
+				 	process.stderr.write([ppem, touchedStemWidthPixels, (actions[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels)] + '\n')
 				 	var msirpwidth = (actions[k].orient ? (-1) : 1) * ((actions[k].adv[3] | 0) * 64);
 				 	args.push(actions[k].adv[2], msirpwidth, actions[k].pos[1]);
 				 	movements.push('MSIRP[0]', 'MDAP[rnd]');
@@ -134,7 +135,7 @@ function instruct(glyph, actions, strategy, cvt, padding) {
 	}
 
 	var deltaInstructions = [];
-	pushargs(deltaInstructions, [2, strategy.PPEM_MIN]);
+	pushargs(deltaInstructions, [1, strategy.PPEM_MIN]);
 	deltaInstructions.push('SDB', 'SDS');
 
 	var mirps = [];
@@ -149,7 +150,7 @@ function instruct(glyph, actions, strategy, cvt, padding) {
 				var original = tk[2];
 				var rounded = rtg(original, upm, ppem);
 				var target = tk[3];
-				var d = 4 * Math.round((target - rounded) / (upm / ppem));
+				var d = Math.round(2 * (target - rounded) / (upm / ppem));
 				var roundBias = (original - rounded) / (upm / ppem);
 				if(roundBias >= 0.4375 && roundBias <= 0.5625) {
 					// RTG rounds TK down, but it is close to the middle
@@ -171,7 +172,7 @@ function instruct(glyph, actions, strategy, cvt, padding) {
 						deltapArgs.push(deltappem * 16 + selector, point.id)
 					}
 				};
-				deltapArgs.push(deltas.length)
+				deltapArgs.push(deltapArgs.length >> 1)
 				pushargs(deltaInstructions, deltapArgs);
 				deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
 			};

@@ -66,7 +66,7 @@ inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 	if(j % divide === modulo) {
 		var glyph = data[1];
 		var stemActions = [];
-		for(var ppem = strategy.PPEM_MIN; ppem <= strategy.PPEM_MAX; ppem++){
+		for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
 			stemActions[ppem] = hint(glyph, ppem, strategy)
 		}
 		j++;
