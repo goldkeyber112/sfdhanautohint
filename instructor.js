@@ -22,7 +22,7 @@ function initialMDRPs(stems){
 	var movements = [];
 	for(var k = 0; k < stems.length; k++){
 		args.push(stems[k].advKey.id, stems[k].posKey.id);
-		movements.push('MDRP[0]', 'MDAP[rnd]');
+		movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
 	};
 	if(args.length) {
 		pushargs(tt, args);
@@ -41,24 +41,23 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 			var touchedStemWidthPixels = (actions[k].adv[4] || 0);
 			var originalStemWidthPixels = (actions[k].adv[3] || 0);
 			if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
-				args.push(actions[k].adv[2], actions[k].pos[1]);
-				movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+				//args.push(actions[k].adv[2], actions[k].pos[1]);
+				//movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
 			} else {
-				var cvtwidth = -Math.round(upm / ppem * touchedStemWidthPixels);
+				var cvtwidth = (actions[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
 				var cvtj = cvt.indexOf(cvtwidth, padding);
 				if(cvtj >= 0) {
 					args.push(actions[k].adv[2], cvtj, actions[k].pos[1]);
 					movements.push('MIRP[0]', 'MDAP[rnd]');
 				} else {
-				 	var msirpwidth = -((actions[k].adv[3] | 0) * 64);
+				 	var msirpwidth = (actions[k].orient ? (-1) : 1) * ((actions[k].adv[3] | 0) * 64);
 				 	args.push(actions[k].adv[2], msirpwidth, actions[k].pos[1]);
 				 	movements.push('MSIRP[0]', 'MDAP[rnd]');
 				}				
 			};
 		} else {
-			// pass
-			// args.push(actions[k].adv[2], actions[k].pos[1]);
-			// movements.push('MDRP[0]', 'MDAP[rnd]');
+			args.push(actions[k].adv[2], actions[k].pos[1]);
+			movements.push('MDRP[0]', 'MDAP[rnd]');
 		}
 	};
 	if(args.length) {

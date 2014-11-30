@@ -18,7 +18,7 @@ exports.extractFeature = function(id, glyph, strategy) {
 			lowkey = s.low[j][k];
 			jLow = j;
 		}
-		highkey.touched = highkey.keypoint = lowkey.touched = lowkey.keypoint = true;
+		highkey.touched = lowkey.touched = true;
 		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) {
 			if(j !== jHigh) {
 				if(k === 0) {
@@ -48,6 +48,7 @@ exports.extractFeature = function(id, glyph, strategy) {
 		s.posAlign = b ? lownonkey : highnonkey;
 		s.advAlign = b ? highnonkey : lownonkey;
 		s.posKeyAtTop = !b;
+		s.posKey.keypoint = true;
 	}
 	
 	// Blue zone points

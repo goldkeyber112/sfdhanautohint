@@ -3,7 +3,7 @@ function pushWhenAbsent(a, x){
 }
 
 function createCvt(src, strategy, padding){
-	var MAX_SW = 3;
+	var MAX_SW = 4;
 	var cvt = (src || []).slice(0);
 	padding = padding || 0;
 	while(cvt.length < padding) cvt.push(0);
