@@ -66,15 +66,24 @@ inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 	if(j % divide === modulo) {
 		var glyph = data[1];
 		var stemActions = [];
+		var nMDRPnr = 0, nMDRPr = 0;
 		for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
-			stemActions[ppem] = hint(glyph, ppem, strategy)
+			var actions = hint(glyph, ppem, strategy);
+			for(var k = 0; k < actions.length; k++){
+				if(actions[k].length === 4) {
+					nMDRPnr += 1
+				} else if(Math.round(actions[k][3]) === actions[k][4] && Math.abs(actions[k][3] - actions[k][4]) < 0.48){
+					nMDRPr += 1
+				}
+			}
+			stemActions[ppem] = actions;
 		}
 		j++;
 		if(n % 100 === 0 && !argv.silent || argv.verbose) {
-			process.stderr.write(('Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)')).cyan + '\n')
+			process.stderr.write(('Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
 		}
 		n++;
-		outStream.write((started ? ',\n' : (started = true, '')) + JSON.stringify([data[0], instruct(glyph, stemActions, strategy, cvt, argv.CVT_PADDING || 0)]));
+		outStream.write((started ? ',\n' : (started = true, '')) + JSON.stringify([data[0], instruct(glyph, stemActions, strategy, cvt, argv.CVT_PADDING || 0, nMDRPnr > nMDRPr)]));
 	} else {
 		j++;
 		return ''

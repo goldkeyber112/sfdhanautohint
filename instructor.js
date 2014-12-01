@@ -16,13 +16,13 @@ function pushargs(tt){
 	}
 };
 
-function initialMDRPs(stems){
+function initialMDRPs(stems, useMDRPnr){
 	var tt = [];
 	var args = [];
 	var movements = [];
 	for(var k = 0; k < stems.length; k++){
 		args.push(stems[k].advKey.id, stems[k].posKey.id);
-		movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+		movements.push(useMDRPnr ? 'MDRP[0]' : 'MDRP[rnd,grey]', 'MDAP[rnd]');
 	};
 	if(args.length) {
 		pushargs(tt, args);
@@ -31,7 +31,7 @@ function initialMDRPs(stems){
 		return []
 	}
 };
-function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
+function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding, useMDRPnr){
 	var tt = [];
 	var args = [];
 	var movements = [];
@@ -41,8 +41,10 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 			var touchedStemWidthPixels = (actions[k].adv[4] || 0);
 			var originalStemWidthPixels = (actions[k].adv[3] || 0);
 			if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
-				//args.push(actions[k].adv[2], actions[k].pos[1]);
-				//movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+				if(useMDRPnr) {
+					args.push(actions[k].adv[2], actions[k].pos[1]);
+					movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
+				}
 			} else {
 				var cvtwidth = (actions[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
 				var cvtj = cvt.indexOf(cvtwidth, padding);
@@ -56,7 +58,7 @@ function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding){
 				 	movements.push('MSIRP[0]', 'MDAP[rnd]');
 				}				
 			};
-		} else {
+		} else if(!useMDRPnr) {
 			args.push(actions[k].adv[2], actions[k].pos[1]);
 			movements.push('MDRP[0]', 'MDAP[rnd]');
 		}
@@ -102,7 +104,7 @@ function ipInstrs(actions){
 	}
 }
 
-function instruct(glyph, actions, strategy, cvt, padding) {
+function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	var padding = padding || 0;
 	var upm = strategy.UPM || 1000;
 	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER, padding);
@@ -177,7 +179,7 @@ function instruct(glyph, actions, strategy, cvt, padding) {
 				deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
 			};
 
-			var ppemSpecificMRPs = roundingStemInstrs(glyph, upm, ppem, instrs, cvt, padding);
+			var ppemSpecificMRPs = roundingStemInstrs(glyph, upm, ppem, instrs, cvt, padding, useMDRPnr);
 			if(ppemSpecificMRPs.length) {
 				mirps.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
 				mirps = mirps.concat(ppemSpecificMRPs);
@@ -187,7 +189,7 @@ function instruct(glyph, actions, strategy, cvt, padding) {
 	};
 
 	// Interpolations
-	tt = tt.concat(deltaInstructions, initialMDRPs(glyph.stems), mirps, ipInstrs(glyph.interpolations));
+	tt = tt.concat(deltaInstructions, initialMDRPs(glyph.stems, useMDRPnr), mirps, ipInstrs(glyph.interpolations));
 
 	// In-stem alignments
 	for(var j = 0; j < glyph.stems.length; j++) {

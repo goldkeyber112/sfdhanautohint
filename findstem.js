@@ -193,6 +193,7 @@ function findStems(glyph, strategy) {
 				for(var k = 1; k < contour.points.length - 1; k++) if(!contour.points[k].interpolated) {
 					if(Math.abs((contour.points[k].yori - lastPoint.yori) / (contour.points[k].xori - lastPoint.xori)) <= SLOPE_FUZZ) {
 						segment.push(contour.points[k])
+						lastPoint = contour.points[k];
 					} else {
 						if(segment.length > 1) segments.push(segment)
 						lastPoint = contour.points[k];
