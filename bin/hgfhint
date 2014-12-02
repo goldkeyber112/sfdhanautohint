@@ -64,6 +64,9 @@ function finish(){
 
 inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 	if(j % divide === modulo) {
+		if(n % 100 === 0 && !argv.silent || argv.verbose) {
+			process.stderr.write(('Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
+		}
 		var glyph = data[1];
 		var stemActions = [];
 		var nMDRPnr = 0, nMDRPr = 0;
@@ -79,9 +82,7 @@ inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 			stemActions[ppem] = actions;
 		}
 		j++;
-		if(n % 100 === 0 && !argv.silent || argv.verbose) {
-			process.stderr.write(('Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
-		}
+
 		n++;
 		outStream.write((started ? ',\n' : (started = true, '')) + JSON.stringify([data[0], instruct(glyph, stemActions, strategy, cvt, argv.CVT_PADDING || 0, nMDRPnr > nMDRPr)]));
 	} else {

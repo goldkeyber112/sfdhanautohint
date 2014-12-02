@@ -92,6 +92,17 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'RTG'];
 
+	// Blue zone alignment instructions
+	for(var k = 0; k < glyph.topBluePoints.length; k++){
+		pushargs(tt, [glyph.topBluePoints[k], cvtTopID]);
+		tt.push('MIAP[rnd]');
+	};
+	for(var k = 0; k < glyph.bottomBluePoints.length; k++){
+		pushargs(tt, [glyph.bottomBluePoints[k], cvtBottomID]);
+		tt.push('MIAP[rnd]');
+	};
+
+
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
 	if(glyph.stems.length) {
@@ -107,15 +118,7 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		tt = tt.concat(initialTouches);
 	};
 
-	// Blue zone alignment instructions
-	for(var k = 0; k < glyph.topBluePoints.length; k++){
-		pushargs(tt, [glyph.topBluePoints[k], cvtTopID]);
-		tt.push('MIAP[0]');
-	}
-	for(var k = 0; k < glyph.bottomBluePoints.length; k++){
-		pushargs(tt, [glyph.bottomBluePoints[k], cvtBottomID]);
-		tt.push('MIAP[0]');
-	}
+
 
 	var deltaInstructions = [];
 	pushargs(deltaInstructions, [1, strategy.PPEM_MIN]);

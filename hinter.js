@@ -1,3 +1,5 @@
+var util = require('util')
+
 function hint(glyph, ppem, strategy) {
 	var upm							= strategy.UPM || 1000;
 
@@ -55,7 +57,6 @@ function hint(glyph, ppem, strategy) {
 		return stem.yori - stem.ytouch >= 0.25 * uppx
 	}
 
-	var contours = glyph.contours;
 	function byyori(a, b){
 		return a.yori - b.yori
 	}
@@ -125,11 +126,11 @@ function hint(glyph, ppem, strategy) {
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
 			var low = roundDown(stems[j].yori) - uppx;
+			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
 			var high = roundUp(stems[j].yori) + uppx;
-			var w = calculateWidth(stems[j].width);
-			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN : pixelBottom + WIDTH_GEAR_MIN + uppx);
 			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
+			var w = calculateWidth(stems[j].width);
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
 			if(atGlyphTop(stems[j])) {
 				var yrdtg = roundDown(stems[j].yori)
@@ -164,12 +165,11 @@ function hint(glyph, ppem, strategy) {
 			var w = calculateWidth(stems[j].width);
 			stems[j].touchwidth = uppx;
 			stems[j].alignTo = null;
-			roundDownStem(stems[j])
-			if(stems[j].ytouch - roundUp(w) < pixelBottom){
-				stems[j].ytouch += uppx;
-			} else if(!atGlyphBottom(stems[j]) && stems[j].ytouch - roundUp(w) <= pixelBottom) {
-				stems[j].ytouch += uppx;
+			roundDownStem(stems[j]);
+			if(atGlyphBottom(stems[j])) {
+				stems[j].ytouch = xclamp(avaliables[j].low * uppx, pixelBottom + WIDTH_GEAR_MIN * uppx, avaliables[j].high * uppx)
 			}
+			stems[j].ytouch = xclamp(avaliables[j].low * uppx, stems[j].ytouch, avaliables[j].high * uppx)
 		}
 	}
 	var COLLISION_FUZZ = 1.04;
@@ -294,7 +294,7 @@ function hint(glyph, ppem, strategy) {
 						alignStem(stems[k], stems[j])
 						continue
 					} 
-					var r = adjustDownward(stems, overlaps, k, ytouchmin)
+					var r = adjustDownward(stems, overlaps, k, avaliables[0].low * uppx)
 					if(r) continue;
 					if(stems[j].ytouch < avaliables[j].high * uppx && stems[j].allowMoveUpward) {
 						stems[j].ytouch += uppx;
@@ -308,7 +308,7 @@ function hint(glyph, ppem, strategy) {
 						alignStem(stems[j], stems[k])
 						break;
 					} 
-					var r = adjustDownward(stems, overlaps, k, ytouchmin);
+					var r = adjustDownward(stems, overlaps, k, avaliables[0].low * uppx);
 					if(r) continue;
 					if(!stems[j].atGlyphTop && stems[j].ytouch < avaliables[j].high * uppx && stems[j].ytouch < pixelTop - blueFuzz) {
 						stems[j].ytouch += uppx;
@@ -356,16 +356,11 @@ function hint(glyph, ppem, strategy) {
 	function birth(father, mother){
 		var y1 = father.slice(0);
 		var lastChoosedMother = false;
-		 if(Math.random() > 0.5) {
-		 	y1[0] = mother[0];
-		 	lastChoosedMother = true;
-		 }
-		for(var j = 1; j < father.length; j++) { 
-			if(symmetricQ(j, j - 1)) {
-				y1[j] = lastChoosedMother ? mother[j] : father[j]
+		for(var j = 0; j < father.length; j++) { 
+			if(j > 0 && symmetricQ(j, j - 1)) {
+				y1[j] = y1[j - 1]
 			} else {
-				if(Math.random() > 0.5) { y1[j] = mother[j]; lastChoosedMother = true }
-				else lastChoosedMother = false
+				if(Math.random() > 0.5) { y1[j] = mother[j] }
 			}
 		}
 		if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
@@ -385,7 +380,8 @@ function hint(glyph, ppem, strategy) {
 	}
 	function dedup(pop){
 		var res = [pop[0]];
-		for(var j = 1; j < pop.length; j++) if(pop[j].potential !== pop[j - 1].potential) res.push(pop[j]);
+		for(var j = 1; j < pop.length; j++) 
+			if(pop[j].collidePotential !== pop[j - 1].collidePotential || pop[j].ablationPotential !== pop[j - 1].ablationPotential) res.push(pop[j]);
 		return res;
 	};
 	function sqr(x){ return x }
@@ -439,9 +435,17 @@ function hint(glyph, ppem, strategy) {
 	function rebalance(stems){
 		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
 		  	if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
-		  		if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
+		  		if(stems[j].ytouch < avaliables[j].high * uppx) { 
+		  			stems[j].ytouch += uppx;
+		  			for(var k = j - 1; k >= 0 && symmetricQ(j, k); k--) stems[k].ytouch = stems[j].ytouch
+		  			for(var k = j + 1; k < stems.length && symmetricQ(j, k); k++) stems[k].ytouch = stems[j].ytouch
+		  		}
 		  	} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
-		  		if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
+		  		if(stems[j].ytouch > avaliables[j].low * uppx) { 
+		  			stems[j].ytouch -= uppx
+		  			for(var k = j - 1; k >= 0 && symmetricQ(j, k); k--) stems[k].ytouch = stems[j].ytouch
+		  			for(var k = j + 1; k < stems.length && symmetricQ(j, k); k++) stems[k].ytouch = stems[j].ytouch
+		  		}
 		  	}
 		};		
 	};
@@ -528,7 +532,6 @@ function hint(glyph, ppem, strategy) {
 	};
 	
 	if(!stems.length) return instructions;
-
 	(function(){
 		var y0 = [];
 		var y0min = avaliables[0].center / uppx;
