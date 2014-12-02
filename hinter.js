@@ -438,13 +438,13 @@ function hint(glyph, ppem, strategy) {
 	// Pass 3 : Rebalance
 	function rebalance(stems){
 		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
-		  	if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch >= 0.6 * uppx) {
+		  	if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
 		  		if(stems[j].ytouch < avaliables[j].high * uppx) { stems[j].ytouch += uppx }
-		  	} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori >= 0.6 * uppx) {
+		  	} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
 		  		if(stems[j].ytouch > avaliables[j].low * uppx) { stems[j].ytouch -= uppx }
 		  	}
 		};		
-	}
+	};
 
 	// Pass 4 : Width allocation
 	function allocateWidth(stems) {
@@ -543,16 +543,15 @@ function hint(glyph, ppem, strategy) {
 				stems[j].touchwidth = uppx;
 				stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
 			}
-			allocateWidth(stems);
 		} else {
 			initStemTouches(stems);
 			earlyAdjust(stems);
 			earlyUncollide(stems);
-			rebalance(stems);
 			uncollide(stems);
-			allocateWidth(stems);
+			rebalance(stems);
 		}
 	})();
+	allocateWidth(stems);
 	touchStemPoints(stems);
 	return instructions
 

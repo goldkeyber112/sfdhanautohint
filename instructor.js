@@ -1,3 +1,5 @@
+var util = require('util')
+
 function rtg(y, upm, ppem){ return Math.round(y / upm * ppem) / ppem * upm }
 function pushargs(tt){
 	var vals = [];
@@ -22,46 +24,7 @@ function initialMDRPs(stems, useMDRPnr){
 	var movements = [];
 	for(var k = 0; k < stems.length; k++){
 		args.push(stems[k].advKey.id, stems[k].posKey.id);
-		movements.push(useMDRPnr ? 'MDRP[0]' : 'MDRP[rnd,grey]', 'MDAP[rnd]');
-	};
-	if(args.length) {
-		pushargs(tt, args);
-		return tt.concat(movements.reverse());
-	} else {
-		return []
-	}
-};
-function roundingStemInstrs(glyph, upm, ppem, actions, cvt, padding, useMDRPnr){
-	var tt = [];
-	var args = [];
-	var movements = [];
-	padding = padding || 0;
-	for(var k = 0; k < actions.length; k++){
-		if(actions[k].adv.length > 4) {
-			var touchedStemWidthPixels = (actions[k].adv[4] || 0);
-			var originalStemWidthPixels = (actions[k].adv[3] || 0);
-			if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
-				if(useMDRPnr) {
-					args.push(actions[k].adv[2], actions[k].pos[1]);
-					movements.push('MDRP[rnd,grey]', 'MDAP[rnd]');
-				}
-			} else {
-				var cvtwidth = (actions[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
-				var cvtj = cvt.indexOf(cvtwidth, padding);
-				if(cvtj >= 0) {
-					args.push(actions[k].adv[2], cvtj, actions[k].pos[1]);
-					movements.push('MIRP[0]', 'MDAP[rnd]');
-				} else {
-				 	process.stderr.write([ppem, touchedStemWidthPixels, (actions[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels)] + '\n')
-				 	var msirpwidth = (actions[k].orient ? (-1) : 1) * ((actions[k].adv[3] | 0) * 64);
-				 	args.push(actions[k].adv[2], msirpwidth, actions[k].pos[1]);
-				 	movements.push('MSIRP[0]', 'MDAP[rnd]');
-				}				
-			};
-		} else if(!useMDRPnr) {
-			args.push(actions[k].adv[2], actions[k].pos[1]);
-			movements.push('MDRP[0]', 'MDAP[rnd]');
-		}
+		movements.push('MDAP[rnd]', 'MDAP[rnd]');
 	};
 	if(args.length) {
 		pushargs(tt, args);
@@ -110,6 +73,22 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	var cvtTopID = cvt.indexOf(strategy.BLUEZONE_TOP_CENTER, padding);
 	var cvtBottomID = cvt.indexOf(strategy.BLUEZONE_BOTTOM_CENTER, padding);
 
+	function decideDelta(gear, original, target, upm, ppem){
+		var rounded = rtg(original, upm, ppem);
+		var d = Math.round(gear * (target - rounded) / (upm / ppem));
+		var roundBias = (original - rounded) / (upm / ppem);
+		if(roundBias >= 0.4375 && roundBias <= 0.5625) {
+			// RTG rounds TK down, but it is close to the middle
+			d -= 1
+		} else if(roundBias >= -0.5625 && roundBias <= -0.4375) {
+			d += 1
+		};
+		if(!d) return -1;
+		if(d < -8 || d > 8) return -2;
+		var selector = (d > 0 ? d + 7 : d + 8);
+		var deltappem = (ppem - strategy.PPEM_MIN) % 16;
+		return deltappem * 16 + selector
+	}
 	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'RTG'];
 
@@ -120,6 +99,8 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		var initialTouches = [];
 		for(var k = 0; k < glyph.stems.length; k++){
 			initialTouchArgs.push(glyph.stems[k].posKey.id);
+			initialTouchArgs.push(glyph.stems[k].advKey.id);
+			initialTouches.push('MDAP[0]');
 			initialTouches.push('MDAP[0]');
 		};
 		pushargs(tt, initialTouchArgs);
@@ -129,11 +110,11 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	// Blue zone alignment instructions
 	for(var k = 0; k < glyph.topBluePoints.length; k++){
 		pushargs(tt, [glyph.topBluePoints[k], cvtTopID]);
-		tt.push('MIAP[rnd]');
+		tt.push('MIAP[0]');
 	}
 	for(var k = 0; k < glyph.bottomBluePoints.length; k++){
 		pushargs(tt, [glyph.bottomBluePoints[k], cvtBottomID]);
-		tt.push('MIAP[rnd]');
+		tt.push('MIAP[0]');
 	}
 
 	var deltaInstructions = [];
@@ -141,45 +122,62 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	deltaInstructions.push('SDB', 'SDS');
 
 	var mirps = [];
-
 	if(glyph.stems.length) {
 		mirps.push('MPPEM');
 		for(var ppem = 0; ppem < actions.length; ppem++) if(actions[ppem]){
 			var instrs = actions[ppem];
 			var deltas = [];
-			for(var k = 0; k < instrs.length; k++){
-				var tk = instrs[k].pos;
-				var original = tk[2];
-				var rounded = rtg(original, upm, ppem);
-				var target = tk[3];
-				var d = Math.round(2 * (target - rounded) / (upm / ppem));
-				var roundBias = (original - rounded) / (upm / ppem);
-				if(roundBias >= 0.4375 && roundBias <= 0.5625) {
-					// RTG rounds TK down, but it is close to the middle
-					d -= 1
-				} else if(roundBias >= -0.5625 && roundBias <= -0.4375) {
-					d += 1
-				};
+			var args = [];
+			var movements = [];
+			for(var k = 0; k < instrs.length; k++) {
+				var d = decideDelta(2, instrs[k].pos[2], instrs[k].pos[3], upm, ppem);
+				if(d >= 0) deltas.push({ id: instrs[k].pos[1], delta: d });
 
-				if(d) deltas.push({id: tk[1], delta: d});
+				if(instrs[k].adv.length > 4) {
+					var touchedStemWidthPixels 	= (instrs[k].adv[4] || 0);
+					var originalStemWidthPixels	= (instrs[k].adv[3] || 0);
+					var originalAdvKeyPosition 	= instrs[k].pos[2] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[3] * (upm / ppem);
+					var targetAdvKeyPosition   	= instrs[k].pos[3] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[4] * (upm / ppem);
+					var d = decideDelta(2, originalAdvKeyPosition, targetAdvKeyPosition, upm, ppem);
+					if(d >= 0) {
+						deltas.push({ id: instrs[k].adv[2], delta: d });
+					} else if(d === -1) {
+						// IGNORE
+					} else if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
+						args.push(instrs[k].adv[2], instrs[k].pos[1]);
+						movements.push('MDRP[rnd,grey]', 'SRP0');
+					} else {
+						var cvtwidth = (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
+						var cvtj = cvt.indexOf(cvtwidth, padding);
+						if(cvtj >= 0) {
+							args.push(instrs[k].adv[2], cvtj, instrs[k].pos[1]);
+							movements.push('MIRP[0]', 'SRP0');
+						} else {
+						 	process.stderr.write([ppem, touchedStemWidthPixels, (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels)] + '\n')
+						 	var msirpwidth = (instrs[k].orient ? (-1) : 1) * ((instrs[k].adv[3] | 0) * 64);
+						 	args.push(instrs[k].adv[2], msirpwidth, instrs[k].pos[1]);
+						 	movements.push('MSIRP[0]', 'SRP0');
+						}							
+					};
+				} else {
+					args.push(instrs[k].adv[2], instrs[k].pos[1]);
+					movements.push('MDRP[0]', 'SRP0');
+				}
 			};
 			if(deltas.length) {
 				var deltapArgs = [];
 				for(var j = 0; j < deltas.length; j++){
-					var point = deltas[j];
-					var d = deltas[j].delta;
-					if(d <= 8 && d >= -8) {
-						var selector = (d > 0 ? d + 7 : d + 8);
-						var deltappem = (ppem - strategy.PPEM_MIN) % 16;
-						deltapArgs.push(deltappem * 16 + selector, point.id)
-					}
+					deltapArgs.push(deltas[j].delta, deltas[j].id)
 				};
 				deltapArgs.push(deltapArgs.length >> 1)
 				pushargs(deltaInstructions, deltapArgs);
 				deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
 			};
-
-			var ppemSpecificMRPs = roundingStemInstrs(glyph, upm, ppem, instrs, cvt, padding, useMDRPnr);
+			var ppemSpecificMRPs = [];
+			if(args.length) {
+				pushargs(ppemSpecificMRPs, args)
+				ppemSpecificMRPs = ppemSpecificMRPs.concat(movements.reverse());
+			};
 			if(ppemSpecificMRPs.length) {
 				mirps.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
 				mirps = mirps.concat(ppemSpecificMRPs);

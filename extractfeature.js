@@ -42,7 +42,9 @@ exports.extractFeature = function(id, glyph, strategy) {
 			} else if(s.low[j][k] !== lowkey) {
 				s.low[j][k].donttouch = true
 			}
-		}
+		};
+		s.yori = highkey.yori;
+		s.width = highkey.yori - lowkey.yori;
 		s.posKey = b ? lowkey : highkey;
 		s.advKey = b ? highkey : lowkey;
 		s.posAlign = b ? lownonkey : highnonkey;
