@@ -65,7 +65,7 @@ function finish(){
 inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 	if(j % divide === modulo) {
 		if(n % 100 === 0 && !argv.silent || argv.verbose) {
-			process.stderr.write(('Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
+			process.stderr.write(('HGFHINT: Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
 		}
 		var glyph = data[1];
 		var stemActions = [];

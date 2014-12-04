@@ -70,7 +70,7 @@ rl.on('line', function(line) {
 			started = true;
 			n += 1;
 			if(n % 100 === 0){
-				process.stderr.write('Analyzed ' + n + ' glyphs of ' + (argv._[0] || '(stdin)') + '.\n')
+				process.stderr.write('EXTRACT-FEATURES: Analyzed ' + n + ' glyphs of ' + (argv._[0] || '(stdin)') + '.\n')
 			}
 		};
 		curChar = null;
