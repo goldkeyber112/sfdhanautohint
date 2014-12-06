@@ -350,15 +350,13 @@ function hint(glyph, ppem, strategy) {
 	function byPotential(p, q){ return p.collidePotential + p.ablationPotential - q.collidePotential - q.ablationPotential };
 	function Organism(y){
 		this.gene = y;
-		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
-		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables)
+		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
+		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
+		this.fitness = 1 / (0.0001 + Math.max(0, this.collidePotential + this.ablationPotential))
 	};
-	function birth(father, mother){
-		var y1 = father.slice(0);
-		var lastChoosedMother = false;
-		for(var j = 0; j < father.length; j++) { 
-			if(Math.random() > 0.5) { y1[j] = mother[j] }
-		}
+	function crossover(father, mother){
+		var rj = Math.floor(Math.random() * father.length);
+		var y1 = father.slice(0, rj).concat(mother.slice(rj));
 		if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
 		return new Organism(y1);
 	};
@@ -369,25 +367,28 @@ function hint(glyph, ppem, strategy) {
 		var rj = Math.floor(Math.random() * y1.length);
 		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)))
 	}
-	function dedup(pop){
-		var res = [pop[0]];
-		for(var j = 1; j < pop.length; j++) 
-			if(pop[j].collidePotential !== pop[j - 1].collidePotential || pop[j].ablationPotential !== pop[j - 1].ablationPotential) res.push(pop[j]);
-		return res;
-	};
-	function sqr(x){ return x }
 
 	function evolve(population) {
-		var children = [];
+		// Crossover
+		var res = [], children = []
 		for(var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
-			var father = population[Math.floor(sqr(Math.random()) * population.length)].gene;
-			var mother = population[Math.floor(sqr(Math.random()) * population.length)].gene;
-			var y1 = father.slice(0);
-			for(var j = 0; j < father.length; j++) if(Math.random() > 0.5) y1[j] = mother[j]
-			if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
-			children[c] = new Organism(y1)
+			var father = population[0 | Math.random() * population.length].gene;
+			var mother = population[0 | Math.random() * population.length].gene;
+			children.push(crossover(father, mother))
 		};
-		return dedup(population.concat(children).sort(byPotential)).slice(0, POPULATION_LIMIT);
+		population = population.concat(children);
+		// Selection
+		var maxFitness = 0, n = 0;
+		for(var j = 0; j < population.length; j++) if(population[j].fitness > maxFitness){ maxFitness = population[j].fitness }
+		while(n < POPULATION_LIMIT) {
+			var j = 0 | Math.random() * population.length;
+			if(Math.random () <= population[j].fitness / maxFitness) {
+				res[n] = population[j];
+				n += 1;
+				population.splice(j, 1)
+			}
+		};
+		return res;
 	}
 	// Pass 2 : Uncollide
 	// In this pass a genetic algorithm take place to optimize stroke placements of the glyph.
@@ -408,15 +409,23 @@ function hint(glyph, ppem, strategy) {
 				mutantAt(y1, j, k);
 				population.push(new Organism(y1));
 			}
-		}
+		};
 
+		var elites = [new Organism(y0)]
 		for(var s = 0; s < EVOLUTION_STAGES; s++) {
 			population = evolve(population);
-		}
+			var elite = population[0];
+			for(var j = 0; j < population.length; j++) if(population[j].fitness > elite.fitness) elite = population[j];
+			elites.push(elite);
+		};
+
+		population = elites.concat(population);
+		var best = population[0];
+		for(var j = 1; j < population.length; j++) if(population[j].fitness > best.fitness) best = population[j];
 		
 		// Assign
 		for(var j = 0; j < stems.length; j++){
-			stems[j].ytouch = population[0].gene[j] * uppx;
+			stems[j].ytouch = best.gene[j] * uppx;
 			//stems[j].touchwidth = uppx;
 			stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
 		}
