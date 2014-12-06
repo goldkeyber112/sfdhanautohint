@@ -243,8 +243,6 @@ function findStems(glyph, strategy) {
 						stem.high = segs[k];
 						stem.yori = stem.high[0][0].yori;
 						stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
-						stem.atGlyphTop = stem.high[0][0].yori >= stats.ymax - blueFuzz;
-						stem.atGlyphBottom = stem.high[0][0].yori - stem.width <= stats.ymin + blueFuzz;
 						stem.belongRadical = radicals[r];
 						segs[j] = segs[k] = null;
 						radicalStems.push(stem);
@@ -257,6 +255,24 @@ function findStems(glyph, strategy) {
 		}
 		return stems.sort(function(a, b){ return a.yori - b.yori });
 	};
+
+	// Symmetric stem pairing
+	function pairSymmetricStems(stems) {
+		var res = [];
+		for(var j = 0; j < stems.length; j++) if(stems[j]) {
+			for(var k = 0; k < stems.length; k++) if(stems[k]) {
+				if(stems[j].yori === stems[k].yori && stems[j].width === stems[k].width && stems[j].belongRadical !== stems[k].belongRadical) {
+					stems[j].high = stems[j].high.concat(stems[k].high);
+					stems[j].low = stems[j].low.concat(stems[k].low);
+					stems[k] = null
+				}
+			}
+		};
+		for(var j = 0; j < stems.length; j++) if(stems[j]) {
+			res.push(stems[j])
+		};
+		return res;
+	}
 
 	// Spatial relationship analyzation
 	function analyzePointToStemSpatialRelationships(stem, radical){
@@ -292,7 +308,7 @@ function findStems(glyph, strategy) {
 		}
 		stem.xmin = xmin;
 		stem.xmax = xmax;
-	}
+	};
 	function analyzeStemSpatialRelationships(stems, overlaps) {
 		for(var k = 0; k < stems.length; k++) {
 			analyzePointToStemSpatialRelationships(stems[k], stems[k].belongRadical);
@@ -357,7 +373,8 @@ function findStems(glyph, strategy) {
 	var radicals = glyph.radicals = findRadicals(glyph.contours);
 	var stats = glyph.stats = statGlyph(glyph.contours);
 	findHorizontalSegments(radicals);
-	var stems = glyph.stems = pairSegments(radicals);
+	var stems = pairSegments(radicals);
+	stems = pairSymmetricStems(stems);
 	var overlaps = glyph.stemOverlaps = (function(){
 		var transitions = [];
 		for(var j = 0; j < stems.length; j++){
@@ -370,6 +387,7 @@ function findStems(glyph, strategy) {
 	})();
 	analyzeStemSpatialRelationships(stems, overlaps);
 	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps);
+	glyph.stems = stems;
 	return glyph;
 }
 

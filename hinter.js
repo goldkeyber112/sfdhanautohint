@@ -147,8 +147,8 @@ function hint(glyph, ppem, strategy) {
 			center = xclamp(center, low, high);
 			
 			var ablationCoeff = atGlyphTop(stems[j]) || atGlyphBottom(stems[j]) ? ABLATION_GLYPH_HARD_EDGE
-			                  : !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
-			                  : !stems[j].hasSameRadicalStemAbove || !stems[j].hasSameRadicalStemBelow ? ABLATION_RADICAL_EDGE : ABLATION_IN_RADICAL;
+							  : !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
+							  : !stems[j].hasSameRadicalStemAbove || !stems[j].hasSameRadicalStemBelow ? ABLATION_RADICAL_EDGE : ABLATION_IN_RADICAL;
 			avaliables[j] = {
 				low: Math.round(low / uppx),
 				high: Math.round(high / uppx), 
@@ -256,23 +256,23 @@ function hint(glyph, ppem, strategy) {
 		// Adjust top stems
 		var ytouchmax = stems[stems.length - 1].ytouch;
 		for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove) {
-		  	var stem = stems[j]
-		  	if(atGlyphTop(stem)) {
-		  		var canAdjustUpToGlyphTop = stem.ytouch < Math.min(avaliables[j].high * uppx, pixelTop - blueFuzz) && stem.ytouch >= pixelTop - uppx - 1;
-		  		if(canAdjustUpToGlyphTop && stem.yori - stem.ytouch >= 0.47 * uppx) {
-		  			// Rounding-related upward adjustment
-		  			stem.ytouch += uppx
-		  		} else if(canAdjustUpToGlyphTop && shouldAddGlyphHeight(stem, ppem, pixelTop, pixelBottom)) {
-		  			// Strategy-based upward adjustment
-		  			stem.ytouch += uppx
-		  		};
-		  		stem.allowMoveUpward = stem.ytouch < pixelTop - blueFuzz;
-		  	} else {
-		  		if(stem.ytouch < pixelTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx){
-		  			stem.ytouch += uppx
-		  		}
-		  		stem.allowMoveUpward = stem.ytouch < pixelTop - uppx - blueFuzz
-		  	}
+			var stem = stems[j]
+			if(atGlyphTop(stem)) {
+				var canAdjustUpToGlyphTop = stem.ytouch < Math.min(avaliables[j].high * uppx, pixelTop - blueFuzz) && stem.ytouch >= pixelTop - uppx - 1;
+				if(canAdjustUpToGlyphTop && stem.yori - stem.ytouch >= 0.47 * uppx) {
+					// Rounding-related upward adjustment
+					stem.ytouch += uppx
+				} else if(canAdjustUpToGlyphTop && shouldAddGlyphHeight(stem, ppem, pixelTop, pixelBottom)) {
+					// Strategy-based upward adjustment
+					stem.ytouch += uppx
+				};
+				stem.allowMoveUpward = stem.ytouch < pixelTop - blueFuzz;
+			} else {
+				if(stem.ytouch < pixelTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx){
+					stem.ytouch += uppx
+				}
+				stem.allowMoveUpward = stem.ytouch < pixelTop - uppx - blueFuzz
+			}
 		};		
 	}
 	function earlyUncollide(stems){
@@ -357,22 +357,13 @@ function hint(glyph, ppem, strategy) {
 		var y1 = father.slice(0);
 		var lastChoosedMother = false;
 		for(var j = 0; j < father.length; j++) { 
-			if(j > 0 && symmetricQ(j, j - 1)) {
-				y1[j] = y1[j - 1]
-			} else {
-				if(Math.random() > 0.5) { y1[j] = mother[j] }
-			}
+			if(Math.random() > 0.5) { y1[j] = mother[j] }
 		}
 		if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
 		return new Organism(y1);
 	};
-	function symmetricQ(j, k){
-		return Math.abs(avaliables[j].center - avaliables[k].center) < 4
-	}
 	function mutantAt(y1, rj, pos){
 		y1[rj] = pos;
-		for(var j = rj + 1; j < y1.length && symmetricQ(j, rj); j++) y1[j] = y1[rj]
-		for(var j = rj - 1; j >= 0 && symmetricQ(j, rj); j--) y1[j] = y1[rj]
 	};
 	function mutant(y1){
 		var rj = Math.floor(Math.random() * y1.length);
@@ -437,14 +428,10 @@ function hint(glyph, ppem, strategy) {
 		  	if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
 		  		if(stems[j].ytouch < avaliables[j].high * uppx) { 
 		  			stems[j].ytouch += uppx;
-		  			for(var k = j - 1; k >= 0 && symmetricQ(j, k); k--) stems[k].ytouch = stems[j].ytouch
-		  			for(var k = j + 1; k < stems.length && symmetricQ(j, k); k++) stems[k].ytouch = stems[j].ytouch
 		  		}
 		  	} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
 		  		if(stems[j].ytouch > avaliables[j].low * uppx) { 
 		  			stems[j].ytouch -= uppx
-		  			for(var k = j - 1; k >= 0 && symmetricQ(j, k); k--) stems[k].ytouch = stems[j].ytouch
-		  			for(var k = j + 1; k < stems.length && symmetricQ(j, k); k++) stems[k].ytouch = stems[j].ytouch
 		  		}
 		  	}
 		};		
