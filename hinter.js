@@ -125,9 +125,9 @@ function hint(glyph, ppem, strategy) {
 	var avaliables = function(stems){
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
-			var low = roundDown(stems[j].yori) - uppx;
+			var low = round(stems[j].yori) - uppx;
 			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
-			var high = roundUp(stems[j].yori) + uppx;
+			var high = round(stems[j].yori) + uppx;
 			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
 			var w = calculateWidth(stems[j].width);
@@ -414,7 +414,7 @@ function hint(glyph, ppem, strategy) {
 		for(var j = 0; j < n; j++){
 			for(var k = avaliables[j].low; k <= avaliables[j].high; k++) if(k !== y0[j]) {
 				var y1 = y0.slice(0);
-				mutantAt(y1, j, k)
+				mutantAt(y1, j, k);
 				population.push(new Organism(y1));
 			}
 		}

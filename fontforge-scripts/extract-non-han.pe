@@ -12,6 +12,5 @@ SelectMoreIf(UCodePoint(0xf900), UCodePoint(0xfa6f));
 SelectMoreIf(UCodePoint(0x20000), UCodePoint(0x2ffff));
 Clear();
 Print("Outline Cleanup...")
-SetFontOrder(2);
 Print("Saving...");
 Save($2)
