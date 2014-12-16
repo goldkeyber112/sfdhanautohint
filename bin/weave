@@ -8,6 +8,12 @@ var util = require('util');
 var JSONStream = require('JSONStream');
 var es = require('event-stream');
 
+var crypto = require('crypto');
+function md5 (text) {
+	return crypto.createHash('md5').update(text).digest('hex');
+};
+
+
 var yargs = require('yargs')
 	.alias('o', 'output-into')
 	.alias('?', 'help')
@@ -50,7 +56,12 @@ hgiStream.on('end', function(){
 	var activeInstructions = {};
 	for(var j = 0; j < a.length; j++) activeInstructions[a[j][0]] = a[j][1];
 	pass_weaveSFD(activeInstructions);
-})
+});
+
+if(argv.subpattern) {
+	var pattern = new RegExp(argv.subpattern, argv.subflag || '');
+	var replacement = argv.subreplacement
+}
 
 function pass_weaveSFD(activeInstructions) {
 	var sfdStream = argv._[1] ? fs.createReadStream(argv._[1]) : fs.createReadStream(argv._[0]);
@@ -93,8 +104,9 @@ function pass_weaveSFD(activeInstructions) {
 			curChar.input += line + '\n';
 		} else if(/^EndChar/.test(line)) {
 			if(curChar){
-				if(!argv.just_modify_cvt && activeInstructions[curChar.id]) {
-					buf += "TtInstrs:\n" + activeInstructions[curChar.id] + "\nEndTTInstrs\n";
+				var hash = md5(curChar.input);
+				if(!argv.just_modify_cvt && activeInstructions[hash]) {
+					buf += "TtInstrs:\n" + activeInstructions[hash] + "\nEndTTInstrs\n";
 				}
 				n++;
 			};
@@ -102,6 +114,8 @@ function pass_weaveSFD(activeInstructions) {
 		} else if(/^BeginChars:/.test(line)) {
 			buf += 'ShortTable: cvt  ' + cvt.length + '\n' + cvt.join('\n') + '\nEndShort\n'
 		};
+
+		if(pattern) line = line.replace(pattern, replacement);
 
 		buf += line + '\n';
 		if(buf.length >= 4096) {
