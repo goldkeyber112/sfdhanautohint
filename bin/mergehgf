@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+var fs = require('fs');
+var path = require('path');
+var stream = require('stream');
+var readline = require('readline');
+var argv = require('yargs').argv;
+var glob = require("glob");
+var JSONStream = require('JSONStream');
+var es = require('event-stream');
+
+
+var outStream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }) : process.stdout;
+var buf = {}
+argv._.forEach(function(file){ 
+	var d = JSON.parse(fs.readFileSync(file, 'utf-8'));
+	for(var j = 0; j < d.length; j++) {
+		if(!buf[d[j][0]]) buf[d[j][0]] = d[j][1];
+	}
+});
+outStream.write("[");
+var started = false;
+for(var k in buf) {
+	outStream.write((started ? ',\n' : '') + JSON.stringify([k, buf[k]]));
+	started = true
+}
+outStream.write(']')
