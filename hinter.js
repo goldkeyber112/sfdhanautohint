@@ -347,7 +347,7 @@ function hint(glyph, ppem, strategy) {
 		};
 		return p;
 	};
-	function byPotential(p, q){ return p.collidePotential + p.ablationPotential - q.collidePotential - q.ablationPotential };
+
 	function Organism(y){
 		this.gene = y;
 		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
@@ -366,7 +366,7 @@ function hint(glyph, ppem, strategy) {
 	function mutant(y1){
 		var rj = Math.floor(Math.random() * y1.length);
 		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)))
-	}
+	};
 
 	function evolve(population) {
 		// Crossover

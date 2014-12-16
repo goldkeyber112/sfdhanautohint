@@ -126,7 +126,6 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 
 	var mirps = [];
 	if(glyph.stems.length) {
-		mirps.push('MPPEM');
 		for(var ppem = 0; ppem < actions.length; ppem++) if(actions[ppem]){
 			var instrs = actions[ppem];
 			var deltas = [];
@@ -182,7 +181,7 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 				ppemSpecificMRPs = ppemSpecificMRPs.concat(movements.reverse());
 			};
 			if(ppemSpecificMRPs.length) {
-				mirps.push('DUP', 'PUSHB_1', ppem, 'EQ', 'IF');
+				mirps.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
 				mirps = mirps.concat(ppemSpecificMRPs);
 				mirps.push('EIF');				
 			}
