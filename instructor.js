@@ -102,6 +102,7 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		tt.push('MIAP[rnd]');
 	};
 
+	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GTEQ', 'AND', 'IF');
 
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
@@ -117,7 +118,6 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		pushargs(tt, initialTouchArgs);
 		tt = tt.concat(initialTouches);
 	};
-
 
 
 	var deltaInstructions = [];
@@ -200,9 +200,9 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 				tt = tt.concat(x[1].map(function(x){ return 'MDRP[0]'}))
 			}
 		});
-	}
+	};
 
-	tt.push('IUP[y]');
+	tt.push('EIF', 'IUP[y]');
 	return tt.join("\n")
 };
 
