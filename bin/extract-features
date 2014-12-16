@@ -9,6 +9,11 @@ var devnull = require('dev-null');
 var colors = require('colors');
 var util = require('util');
 
+var crypto = require('crypto');
+function md5 (text) {
+	return crypto.createHash('md5').update(text).digest('hex');
+};
+
 var yargs = require('yargs')
 	.alias('o', 'output-into')
 	.alias('?', 'help')
@@ -66,7 +71,8 @@ rl.on('line', function(line) {
 		curChar.input += line + '\n';
 	} else if(/^EndChar/.test(line)) {
 		if(curChar) {
-			buf += (started ? ',\n' : '') + JSON.stringify(extractFeature(curChar.id, findStems(parseSFD(curChar.input), strategy), strategy));
+			var hash = md5(curChar.input);
+			buf += (started ? ',\n' : '') + JSON.stringify(extractFeature(hash, findStems(parseSFD(curChar.input), strategy), strategy));
 			started = true;
 			n += 1;
 			if(n % 100 === 0){
