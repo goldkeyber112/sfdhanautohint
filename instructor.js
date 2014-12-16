@@ -91,6 +91,7 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	}
 	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'RTG'];
+	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GTEQ', 'AND', 'IF');
 
 	// Blue zone alignment instructions
 	for(var k = 0; k < glyph.topBluePoints.length; k++){
@@ -102,7 +103,6 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		tt.push('MIAP[rnd]');
 	};
 
-	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GTEQ', 'AND', 'IF');
 
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
