@@ -10,11 +10,17 @@ var es = require('event-stream');
 
 
 var outStream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }) : process.stdout;
-var buf = {}
+var buf = {};
+var nRead = 0;
+var nTotal = 0
 argv._.forEach(function(file){ 
 	var d = JSON.parse(fs.readFileSync(file, 'utf-8'));
 	for(var j = 0; j < d.length; j++) {
-		if(!buf[d[j][0]]) buf[d[j][0]] = d[j][1];
+		nRead += 1;
+		if(!buf[d[j][0]]) {
+			buf[d[j][0]] = d[j][1];
+			nTotal += 1;
+		}
 	}
 });
 outStream.write("[");
@@ -23,4 +29,5 @@ for(var k in buf) {
 	outStream.write((started ? ',\n' : '') + JSON.stringify([k, buf[k]]));
 	started = true
 }
-outStream.write(']')
+outStream.write(']');
+process.stderr.write(nRead + " records found; " + nTotal + " records after merging.\n");

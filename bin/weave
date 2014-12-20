@@ -70,7 +70,8 @@ function pass_weaveSFD(activeInstructions) {
 	process.stderr.write('WEAVE: Start weaving ' + (argv.o || '(stdout)') + '\n')
 	process.stderr.write('WEAVE: ' + (Object.keys(activeInstructions).length) + ' Active hinting records : ' + Object.keys(activeInstructions).slice(0, 3) + '...' + '\n')
 
-	var n = 0;
+	var nGlyphs = 0;
+	var nApplied = 0;
 	var buf = '';
 
 	var curChar = null;
@@ -79,6 +80,7 @@ function pass_weaveSFD(activeInstructions) {
 	var sourceCvt = '';
 	var readingCvt = false;
 	rl.on('line', function(line) {
+		line = line.replace(/\r$/, '');
 
 		if(/^ShortTable: cvt /.test(line)) {
 			sourceCvt += line + "\n";
@@ -106,9 +108,10 @@ function pass_weaveSFD(activeInstructions) {
 			if(curChar){
 				var hash = md5(curChar.input);
 				if(!argv.just_modify_cvt && activeInstructions[hash]) {
+					nApplied += 1;
 					buf += "TtInstrs:\n" + activeInstructions[hash] + "\nEndTTInstrs\n";
 				}
-				n++;
+				nGlyphs += 1;
 			};
 			curChar = null;
 		} else if(/^BeginChars:/.test(line)) {
@@ -125,6 +128,8 @@ function pass_weaveSFD(activeInstructions) {
 	});
 
 	rl.on('close', function() {
+		process.stderr.write('WEAVE: ' + nGlyphs + ' glyphs processed; ' + nApplied + ' glyphs applied hint.\n')
+
 	   	if(buf) outStream.write(buf);
 	   	outStream.end();
 	});	
