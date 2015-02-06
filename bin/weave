@@ -7,6 +7,7 @@ var colors = require('colors');
 var util = require('util');
 var JSONStream = require('JSONStream');
 var es = require('event-stream');
+var stripBom = require('strip-bom');
 
 var crypto = require('crypto');
 function md5 (text) {
@@ -52,7 +53,7 @@ var createCvt = require('../cvt').createCvt;
 var buf = '';
 hgiStream.on('data', function(d){ buf += d });
 hgiStream.on('end', function(){
-	var a = JSON.parse(buf);
+	var a = JSON.parse(stripBom(buf));
 	var activeInstructions = {};
 	for(var j = 0; j < a.length; j++) activeInstructions[a[j][0]] = a[j][1];
 	pass_weaveSFD(activeInstructions);

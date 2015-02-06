@@ -91,7 +91,7 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	}
 	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'RTG'];
-	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GTEQ', 'AND', 'IF');
+	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GT', 'AND', 'IF');
 
 	// Blue zone alignment instructions
 	for(var k = 0; k < glyph.topBluePoints.length; k++){

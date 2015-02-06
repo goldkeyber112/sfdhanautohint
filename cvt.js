@@ -6,6 +6,7 @@ function createCvt(src, strategy, padding){
 	var MAX_SW = 4;
 	var cvt = (src || []).slice(0);
 	padding = padding || 0;
+	if(padding) cvt = cvt.slice(0, padding);
 	while(cvt.length < padding) cvt.push(0);
 	pushWhenAbsent(cvt, 0);
 	pushWhenAbsent(cvt, strategy.BLUEZONE_TOP_CENTER);

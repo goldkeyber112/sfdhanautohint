@@ -8,13 +8,40 @@ exports.extractFeature = function(id, glyph, strategy) {
 			&& !(s.hasRadicalLeftAdjacentPointBelow && s.radicalLeftAdjacentDescent > strategy.STEM_SIDE_MIN_DESCENT)
 			&& !(s.hasRadicalRightAdjacentPointBelow && s.radicalRightAdjacentDescent > strategy.STEM_SIDE_MIN_DESCENT)
 			&& !s.hasGlyphStemBelow
+		// calculate slope
+		var sy = 0, sx = 0, n = 0;
+		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) {
+			sy += s.high[j][k].yori;
+			sx += s.high[j][k].xori;
+			n += 1;
+		};
+		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) {
+			sy += s.low[j][k].yori;
+			sx += s.low[j][k].xori;
+			n += 1;
+		};
+		var ax = sx / n, ay = sy / n;
+		var b1num = 0, b1den = 0;
+		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) {
+			b1num += (s.high[j][k].xori - ax) * (s.high[j][k].yori - ay);
+			b1den += (s.high[j][k].xori - ax) * (s.high[j][k].xori - ax);
+		};
+		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) {
+			b1num += (s.low[j][k].xori - ax) * (s.low[j][k].yori - ay);
+			b1den += (s.low[j][k].xori - ax) * (s.low[j][k].xori - ax);
+		};
+		var slope = b1num / b1den;
+		function intercept(point){
+			return point.yori - point.xori * slope;
+		}
+		// get highkey and lowkey
 		var highkey = s.high[0][0], lowkey = s.low[0][0], highnonkey = [], lownonkey = [];
 		var jHigh = 0, jLow = 0;
-		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) if(s.high[j][k].id >= 0 && s.high[j][k].yori < highkey.yori) {
+		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) if(s.high[j][k].id >= 0 && intercept(s.high[j][k]) < intercept(highkey)) {
 			highkey = s.high[j][k];
 			jHigh = j;
 		}
-		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) if(s.low[j][k].id >= 0 && s.low[j][k].yori > lowkey.yori) {
+		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) if(s.low[j][k].id >= 0 && intercept(s.low[j][k])> intercept(lowkey)) {
 			lowkey = s.low[j][k];
 			jLow = j;
 		}

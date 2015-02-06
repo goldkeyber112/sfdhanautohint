@@ -7,6 +7,7 @@ var colors = require('colors');
 var util = require('util');
 var JSONStream = require('JSONStream');
 var es = require('event-stream');
+var stripBom = require('strip-bom');
 
 var hint = require('../hinter').hint;
 var instruct = require('../instructor').instruct;
@@ -62,7 +63,7 @@ function finish(){
 	outStream.write(']\n');
 }
 
-inStream.pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
+inStream.pipe(stripBom.stream()).pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
 	if(j % divide === modulo) {
 		if(n % 100 === 0 && !argv.silent || argv.verbose) {
 			process.stderr.write(('HGFHINT: Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')').cyan + '\n')
