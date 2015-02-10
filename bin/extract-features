@@ -72,7 +72,7 @@ rl.on('line', function(line) {
 	} else if(/^EndChar/.test(line)) {
 		if(curChar) {
 			var hash = md5(curChar.input);
-			buf += (started ? ',\n' : '') + JSON.stringify(extractFeature(hash, findStems(parseSFD(curChar.input), strategy), strategy));
+			buf += (started ? ',\n' : '') + JSON.stringify([hash, extractFeature(findStems(parseSFD(curChar.input), strategy), strategy)]);
 			started = true;
 			n += 1;
 			if(n % 100 === 0){

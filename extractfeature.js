@@ -1,4 +1,4 @@
-exports.extractFeature = function(id, glyph, strategy) {
+exports.extractFeature = function(glyph, strategy) {
 
 	// Stem Keypoints
 	for(var js = 0; js < glyph.stems.length; js++) {
@@ -151,7 +151,7 @@ exports.extractFeature = function(id, glyph, strategy) {
 		}
 	}
 	findInterpolates(glyph.contours)
-	return [id, {
+	return {
 		stats: glyph.stats,
 		stems: glyph.stems.map(function(s){
 			return {
@@ -192,5 +192,5 @@ exports.extractFeature = function(id, glyph, strategy) {
 		topBluePoints: topBluePoints.map(function(x){ return x.id }),
 		bottomBluePoints: bottomBluePoints.map(function(x){ return x.id }),
 		interpolations: interpolations
-	}]
+	}
 }

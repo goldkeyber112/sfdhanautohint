@@ -23,7 +23,6 @@ function findStems(glyph, strategy) {
 	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 25;
 	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 3;
 	var COEFF_S = strategy.COEFF_S || 500;
-	var COEFF_A_SYMMETRY = strategy.COEFF_A_SYMMETRY || -40;
 
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
@@ -325,35 +324,32 @@ function findStems(glyph, strategy) {
 		}
 	};
 
-  	// Collision matrices, used to calculate collision potential
-  	function calculateCollisionMatrices(stems, overlaps) {
-  		// A : Alignment operator
-  		// C : Collision operator
-  		// S : Swap operator
-  		var A = [], C = [], S = [], n = stems.length;
-  		for(var j = 0; j < n; j++){
-  			A[j] = [];
-  			C[j] = [];
-  			S[j] = [];
-  			for(var k = 0; k < n; k++) {
-  				A[j][k] = C[j][k] = S[j][k] = 0
-  			}
-  		};
-  		for(var j = 0; j < n; j++) {
-  			for(var k = 0; k < j; k++) {
-  				// var ovr = overlaps[j][k];
-  				var ovr = overlaps[j][k]
-  				var coeffA = 1;
-  				if(stems[j].belongRadical === stems[k].belongRadical) {
-  					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
-  					else coeffA = COEFF_A_SAME_RADICAL
-  				} else {
-  					if(atRadicalBottom(stems[j]) && atRadicalTop(stems[k])) coeffA = COEFF_A_RADICAL_MERGE
-  				}
-  				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
-//				if(ovr === 0 && Math.abs(stems[j].yori - stems[k].yori) < blueFuzz && stems[j].belongRadical !== stems[k].belongRadical) {
-//					A[j][k] = COEFF_A_SYMMETRY
-//				};
+	// Collision matrices, used to calculate collision potential
+	function calculateCollisionMatrices(stems, overlaps) {
+		// A : Alignment operator
+		// C : Collision operator
+		// S : Swap operator
+		var A = [], C = [], S = [], n = stems.length;
+		for(var j = 0; j < n; j++){
+			A[j] = [];
+			C[j] = [];
+			S[j] = [];
+			for(var k = 0; k < n; k++) {
+				A[j][k] = C[j][k] = S[j][k] = 0
+			}
+		};
+		for(var j = 0; j < n; j++) {
+			for(var k = 0; k < j; k++) {
+				// var ovr = overlaps[j][k];
+				var ovr = overlaps[j][k]
+				var coeffA = 1;
+				if(stems[j].belongRadical === stems[k].belongRadical) {
+					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
+					else coeffA = COEFF_A_SAME_RADICAL
+				} else {
+					if(atRadicalBottom(stems[j]) && atRadicalTop(stems[k])) coeffA = COEFF_A_RADICAL_MERGE
+				}
+				A[j][k] = COEFF_A_MULTIPLIER * ovr * coeffA;
 
 				var coeffC = 1;
 				if(stems[j].belongRadical === stems[k].belongRadical) coeffC = COEFF_C_SAME_RADICAL;

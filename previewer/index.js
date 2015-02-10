@@ -1,0 +1,265 @@
+var parseSFD = require('../sfdParser').parseSFD;
+var findStems = require('../findstem').findStems;
+var extractFeature = require('../extractfeature').extractFeature;
+var hint = require('../hinter').hint;
+
+
+var strategy = {
+	UPM: 1000,
+	MIN_STEM_WIDTH: 20,
+	MAX_STEM_WIDTH: 100,
+	MOST_COMMON_STEM_WIDTH: 65,
+	STEM_SIDE_MIN_RISE: 40,
+	STEM_SIDE_MIN_DESCENT: 60,
+	PPEM_MIN: 10,
+	PPEM_MAX: 36,
+	POPULATION_LIMIT: 400,
+	CHILDREN_LIMIT: 175,
+	EVOLUTION_STAGES: 40,
+	MUTANT_PROBABLITY: 0.1,
+	ELITE_COUNT: 10,
+	WIDTH_FACTOR_X: 2,
+	MIN_ADJUST_PPEM: 16,
+	MAX_ADJUST_PPEM: 36,
+	MIN_TOUCHED_STEM_WIDTH: 2,
+	LOW_PPEM_LIMIT: 20,
+	FORCE_LOW_PPEM_LIMIT: 13,
+	MIN_LOW_PPEM_STEM_WIDTH: 1,
+	ABLATION_IN_RADICAL: 1,
+	ABLATION_RADICAL_EDGE: 2,
+	ABLATION_GLYPH_EDGE: 15,
+	ABLATION_GLYPH_HARD_EDGE: 25,
+	COEFF_PORPORTION_DISTORTION: 4,
+	BLUEZONE_BOTTOM_CENTER: -77,
+	BLUEZONE_TOP_CENTER: 836,
+	BLUEZONE_BOTTOM_LIMIT: -65,
+	BLUEZONE_TOP_LIMIT: 810,
+	BLUEZONE_WIDTH: 15,
+	COEFF_A_MULTIPLIER: 10,
+	COEFF_A_SAME_RADICAL: 4,
+	COEFF_A_FEATURE_LOSS: 15,
+	COEFF_A_RADICAL_MERGE: 1,
+	COEFF_C_MULTIPLIER: 40,
+	COEFF_C_SAME_RADICAL: 6,
+	COEFF_S: 10000,
+	COLLISION_MIN_OVERLAP_RATIO: 0.2,
+	DONT_ADJUST_STEM_WIDTH: false,
+	PPEM_STEM_WIDTH_GEARS: [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
+};
+var glyphs = document.getElementById('source').value.match(/SplineSet\n[\s\S]*?EndSplineSet/g).map(function(passage, j){
+	var glyph = parseSFD(passage.slice(9, -12))
+	return {
+		glyph : glyph,
+		features: extractFeature(findStems(glyph, strategy), strategy)
+	}
+});
+function interpolate(a, b, c){
+	if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
+	else if(c.yori >= b.yori) c.ytouch = c.yori - b.yori + b.ytouch;
+	else c.ytouch = (c.yori - a.yori) / (b.yori - a.yori) * (b.ytouch - a.ytouch) + a.ytouch;
+	if(c.yori === 500) debugger;
+}
+function interpolateIP(a, b, c){
+	c.touched = true;
+	c.ytouch = (c.yori - a.yori) / (b.yori - a.yori) * (b.ytouch - a.ytouch) + a.ytouch;
+}
+function IUPy(contours){
+	for(var j = 0; j < contours.length; j++){
+		var contour = contours[j];
+		var k = 0;
+		while(k < contour.points.length && !contour.points[k].touched) k++;
+		if(contour.points[k]) {
+			// Found a touched point in contour
+			var kleft = k, k0 = k;
+			var untoucheds = []
+			for(var k = 0; k <= contour.points.length; k++){
+				var ki = (k + k0) % contour.points.length;
+				if(contour.points[ki].touched){
+					var pleft = contour.points[kleft];
+					var pright = contour.points[ki];
+					var lower = pleft.yori < pright.yori ? pleft : pright
+					var higher = pleft.yori < pright.yori ? pright : pleft
+					for(var w = 0; w < untoucheds.length; w++) interpolate(lower, higher, untoucheds[w]);
+					untoucheds = [];
+					kleft = ki;
+				} else {
+					untoucheds.push(contour.points[ki])
+				}
+			}
+		}
+	}
+}
+function untouchAll(contours) {
+	for(var j = 0; j < contours.length; j++) for(var k = 0; k < contours[j].points.length; k++) {
+		contours[j].points[k].touched = false;
+		contours[j].points[k].donttouch = false;
+		contours[j].points[k].ytouch = contours[j].points[k].yori;
+	}
+}
+var SUPERSAMPLING = 8;
+var DPI = 2;
+function RenderPreviewForPPEM(hdc, basex, basey, ppem){
+	function rtg(y){ return Math.round(y / strategy.UPM * ppem) / ppem * strategy.UPM }
+	for(var j = 0; j < glyphs.length; j++){
+		var glyph = glyphs[j].glyph, features = glyphs[j].features;
+		untouchAll(glyph.contours);
+		var actions = hint(features, ppem, strategy);
+
+		// Top blues
+		features.topBluePoints.forEach(function(pid){ 
+			glyph.indexedPoints[pid].touched = true;
+			glyph.indexedPoints[pid].ytouch = rtg(strategy.BLUEZONE_TOP_CENTER)
+		})
+		// Bottom blues
+		features.bottomBluePoints.forEach(function(pid){ 
+			glyph.indexedPoints[pid].touched = true;
+			glyph.indexedPoints[pid].ytouch = rtg(strategy.BLUEZONE_BOTTOM_CENTER)
+		})
+		// Stems
+		actions.forEach(function(action){
+			glyph.indexedPoints[action.pos[1]].ytouch = action.pos[3];
+			glyph.indexedPoints[action.adv[2]].ytouch = action.pos[3] + (action.orient ? (-1) : 1) * (action.adv[4] || Math.round(action.adv[3])) * (strategy.UPM / ppem);
+			glyph.indexedPoints[action.pos[1]].touched = glyph.indexedPoints[action.adv[2]].touched = true
+		});
+		// Alignments
+		glyph.stems.forEach(function(stem){
+			stem.posAlign.forEach(function(pt){
+				pt = glyph.indexedPoints[pt.id]
+				pt.touched = true;
+				pt.ytouch = glyph.indexedPoints[stem.posKey.id].ytouch
+			})
+			stem.advAlign.forEach(function(pt){
+				pt = glyph.indexedPoints[pt.id]
+				pt.touched = true;
+				pt.ytouch = glyph.indexedPoints[stem.advKey.id].ytouch
+			})
+		});
+		// IPs
+		features.interpolations.forEach(function(group){
+			var a = glyph.indexedPoints[group[0]]
+			var b = glyph.indexedPoints[group[1]]
+			var c = glyph.indexedPoints[group[2]]
+			interpolateIP(a, b, c)
+		});
+
+		// IUPy
+		IUPy(glyph.contours);
+	};
+
+	// Create a temp canvas
+	var eTemp = document.createElement('canvas')
+	eTemp.width = ppem * glyphs.length * 3 * SUPERSAMPLING;
+	eTemp.height = ppem * 3;
+	var hTemp = eTemp.getContext('2d')
+	hTemp.fillStyle = "white";
+	hTemp.fillRect(0, 0, eTemp.width, eTemp.height);
+
+	function txp(x){ return (x / strategy.UPM * ppem) * 3 * SUPERSAMPLING }
+	function typ(y){ return Math.round((- y + strategy.BLUEZONE_TOP_CENTER) / strategy.UPM * ppem) * 3}
+	// Fill
+	hTemp.fillStyle = 'black';
+	for(var m = 0; m < glyphs.length; m++){
+		hTemp.beginPath();
+		for(var j = 0; j < glyphs[m].glyph.contours.length; j++){
+			var contour = glyphs[m].glyph.contours[j];
+			// Layer 1 : Control outline
+			hTemp.moveTo(txp(contour.points[0].xtouch + m * strategy.UPM), typ(contour.points[0].ytouch))
+			for(var k = 1; k < contour.points.length; k++){
+				if(contour.points[k].on) hTemp.lineTo(txp(contour.points[k].xtouch + m * strategy.UPM), typ(contour.points[k].ytouch))
+				else {
+					hTemp.quadraticCurveTo(txp(contour.points[k].xtouch + m * strategy.UPM), typ(contour.points[k].ytouch), txp(contour.points[k + 1].xtouch + m * strategy.UPM), typ(contour.points[k + 1].ytouch))
+					k += 1;
+				}
+			}
+			hTemp.closePath();
+		}
+		hTemp.fill('nonzero');		
+	};
+
+	// Downsampling
+	var ori = hTemp.getImageData(0, 0, eTemp.width, eTemp.height);
+	var aa = hdc.createImageData(ppem * glyphs.length * DPI, ppem * DPI)
+	var w = 4 * eTemp.width;
+	var h = []; for(var j = 0; j < 3 * SUPERSAMPLING; j++) h[j] = 1;
+	var jSample = 0;
+	var a = 3 * SUPERSAMPLING;
+	for(var j = 0; j < ppem; j++) {
+		for(var k = 0; k < ppem * glyphs.length; k++) {
+			for(var component = 0; component < 3; component++) {
+				for(var ss = 0; ss < SUPERSAMPLING; ss++) {
+					var d = ori.data[w] / 255;
+					a += d 
+					a -= h[jSample]
+					h[jSample] = d;
+					w += 4;
+					jSample += 1;
+					if(jSample >= 3 * SUPERSAMPLING) jSample = 0;
+				}
+				var alpha = a / (3 * SUPERSAMPLING);
+				for(var dr = 0; dr < DPI; dr++) for(var dc = 0; dc < DPI; dc++){
+					aa.data[((j * DPI + dr) * aa.width + k * DPI + dc) * 4 + component] = 255 * Math.pow(alpha, 1 / 2.2)
+				}
+			}
+			for(var dr = 0; dr < DPI; dr++) for(var dc = 0; dc < DPI; dc++){
+				aa.data[((j * DPI + dr) * aa.width + k * DPI + dc) * 4 + 3] = 255
+			}
+		}
+		w += 4 * 2 * 3 * SUPERSAMPLING * ppem * glyphs.length
+	};
+	hdc.putImageData(aa, basex, basey)
+};
+
+function render(){
+	var hPreview = document.getElementById('preview').getContext('2d');
+	hPreview.font = (12 * DPI) + 'px sans-serif'
+	var y = 10 * DPI;
+	for(var ppem = 10; ppem < 36; ppem++) {
+		// fill with red block
+		hPreview.fillStyle = 'white';
+		hPreview.fillRect(0, y, 128 + glyphs.length * DPI * ppem, y + DPI * ppem)
+		// render 
+		setTimeout(function(y, ppem){return function(){ RenderPreviewForPPEM(hPreview, 128, y, ppem)}}(y, ppem), 0);
+		hPreview.fillStyle = 'black';
+		hPreview.fillText(ppem + '', 0, y + ppem * (strategy.BLUEZONE_TOP_CENTER / strategy.UPM) * DPI)
+		y += Math.round(ppem * 1.2) * DPI
+	}
+}
+
+function createAdjusters(){
+	var container = document.getElementById('adjusters');
+	for(var key in strategy){
+		if(typeof strategy[key] === 'number') (function(key){
+			var d = document.createElement('label');
+			d.innerHTML += '<span>' + key + '</span>';
+			var input = document.createElement('input');
+			input.value = strategy[key];
+			input.type = 'number';
+
+			input.onchange = function(){
+				strategy[key] = input.value - 0;
+				setTimeout(render, 100);
+			};
+			function btn(shift){
+				var button = document.createElement('button');
+				button.innerHTML = (shift > 0 ? '+' + shift : '-' + (-shift));
+				button.onclick = function(){
+					strategy[key] += shift;
+					input.value = strategy[key]
+					setTimeout(render, 100);
+					return false;
+				}
+				d.appendChild(button)
+			};
+			btn(-100)
+			btn(-10)
+			btn(-1)
+			d.appendChild(input);
+			btn(1)
+			btn(10)
+			btn(100)
+			container.appendChild(d);
+		})(key)
+	}
+}
+createAdjusters()
+render()
