@@ -575,17 +575,22 @@ EndSplineSet
 		flex: none;
 		padding-right: 1em
 	}
-	#adjusters label {
+	#adjusters ol {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 1em 0;
+	}
+	#adjusters ol li {
 		display: flex;
 		font-size: smaller;
 	}
-	#adjusters label span {
+	#adjusters ol li span {
 		display: inline-block;
 		flex: 1;
 		padding: 0.2em;
 		padding-right: 1em;
 	}
-	#adjusters label input {
+	#adjusters ol li input {
 		display: inline-block;
 		flex: none;
 		border: 1px solid #ddd;

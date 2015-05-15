@@ -18,13 +18,6 @@ var strategy = {
 	EVOLUTION_STAGES: 40,
 	MUTANT_PROBABLITY: 0.1,
 	ELITE_COUNT: 10,
-	WIDTH_FACTOR_X: 2,
-	MIN_ADJUST_PPEM: 16,
-	MAX_ADJUST_PPEM: 36,
-	MIN_TOUCHED_STEM_WIDTH: 2,
-	LOW_PPEM_LIMIT: 20,
-	FORCE_LOW_PPEM_LIMIT: 13,
-	MIN_LOW_PPEM_STEM_WIDTH: 1,
 	ABLATION_IN_RADICAL: 1,
 	ABLATION_RADICAL_EDGE: 2,
 	ABLATION_GLYPH_EDGE: 15,
@@ -223,42 +216,60 @@ function render(){
 		hPreview.fillText(ppem + '', 0, y + ppem * (strategy.BLUEZONE_TOP_CENTER / strategy.UPM) * DPI)
 		y += Math.round(ppem * 1.2) * DPI
 	}
-}
+};
+
+var strategyControlGroups = [
+	['UPM', 'BLUEZONE_WIDTH', 'BLUEZONE_TOP_CENTER', 'BLUEZONE_TOP_LIMIT', 'BLUEZONE_BOTTOM_CENTER', 'BLUEZONE_BOTTOM_LIMIT'],
+	['MIN_STEM_WIDTH', 'MAX_STEM_WIDTH', 'MOST_COMMON_STEM_WIDTH', 'STEM_SIDE_MIN_RISE', 'STEM_SIDE_MIN_DESCENT'],
+	['POPULATION_LIMIT', 'CHILDREN_LIMIT', 'EVOLUTION_STAGES', 'MUTANT_PROBABLITY', 'ELITE_COUNT'],
+	['ABLATION_IN_RADICAL', 'ABLATION_RADICAL_EDGE', 'ABLATION_GLYPH_EDGE', 'ABLATION_GLYPH_HARD_EDGE', 'COEFF_PORPORTION_DISTORTION', 'COEFF_A_MULTIPLIER', 'COEFF_A_SAME_RADICAL', 'COEFF_A_FEATURE_LOSS', 'COEFF_A_RADICAL_MERGE', 'COEFF_C_MULTIPLIER', 'COEFF_C_SAME_RADICAL', 'COEFF_S', 'COLLISION_MIN_OVERLAP_RATIO']
+]
 
 function createAdjusters(){
 	var container = document.getElementById('adjusters');
-	for(var key in strategy){
-		if(typeof strategy[key] === 'number') (function(key){
-			var d = document.createElement('label');
-			d.innerHTML += '<span>' + key + '</span>';
-			var input = document.createElement('input');
-			input.value = strategy[key];
-			input.type = 'number';
+	for(var g = 0; g < strategyControlGroups.length; g++) {
+		var ol = document.createElement('ol')
+		for(var j = 0; j < strategyControlGroups[g].length; j++){
+			var key = strategyControlGroups[g][j];
+			if(typeof strategy[key] === 'number') (function(key){
+				var d = document.createElement('li');
+				d.innerHTML += '<span>' + key + '</span>';
+				var input = document.createElement('input');
+				input.value = strategy[key];
+				input.type = 'number';
 
-			input.onchange = function(){
-				strategy[key] = input.value - 0;
-				setTimeout(render, 100);
-			};
-			function btn(shift){
-				var button = document.createElement('button');
-				button.innerHTML = (shift > 0 ? '+' + shift : '-' + (-shift));
-				button.onclick = function(){
-					strategy[key] += shift;
-					input.value = strategy[key]
+				input.onchange = function(){
+					strategy[key] = input.value - 0;
 					setTimeout(render, 100);
-					return false;
-				}
-				d.appendChild(button)
-			};
-			btn(-100)
-			btn(-10)
-			btn(-1)
-			d.appendChild(input);
-			btn(1)
-			btn(10)
-			btn(100)
-			container.appendChild(d);
-		})(key)
+				};
+				function btn(shift){
+					var button = document.createElement('button');
+					button.innerHTML = (shift > 0 ? '+' + shift : '-' + (-shift));
+					button.onclick = function(){
+						strategy[key] += shift;
+						input.value = strategy[key]
+						setTimeout(render, 100);
+						return false;
+					}
+					d.appendChild(button)
+				};
+				btn(-100)
+				btn(-50)
+				btn(-10)
+				btn(-5)
+				btn(-1)
+				btn(-0.1)
+				d.appendChild(input);
+				btn(0.1)
+				btn(1)
+				btn(5)
+				btn(10)
+				btn(50)
+				btn(100)
+				ol.appendChild(d);
+			})(key)
+		}
+		container.appendChild(ol);
 	}
 }
 createAdjusters()

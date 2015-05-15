@@ -18,9 +18,6 @@ function hint(glyph, ppem, strategy) {
 
 	var blueFuzz					= strategy.BLUEZONE_WIDTH || 15;
 
-	var WIDTH_FACTOR_X             	= strategy.WIDTH_FACTOR_X || 2;
-	var MIN_ADJUST_PPEM            	= strategy.MIN_ADJUST_PPEM || 16;
-	var MAX_ADJUST_PPEM            	= strategy.MAX_ADJUST_PPEM || 32;
 	var COLLISION_MIN_OVERLAP_RATIO	= strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
 	var PPEM_STEM_WIDTH_GEARS		= strategy.PPEM_STEM_WIDTH_GEARS || [[0, 1, 1], [13, 1, 2], [21, 2, 2], [27, 2, 3], [32, 3, 3]];
