@@ -23,13 +23,13 @@ Contour.prototype.stat = function() {
 			(  points[j].yori > points[j - 1].yori && points[j].yori >= points[j + 1].yori 
 			|| points[j].yori < points[j - 1].yori && points[j].yori <= points[j + 1].yori)) points[j].yExtrema = true;
 	};
-	var xoris = this.points.map(function(p){ return p.xori })
-	var yoris = this.points.map(function(p){ return p.yori })
-	this.xmax = Math.max.apply(Math, xoris)
-	this.ymax = Math.max.apply(Math, yoris)
-	this.xmin = Math.min.apply(Math, xoris)
-	this.ymin = Math.min.apply(Math, yoris)
-	this.orient()
+	var xoris = this.points.map(function(p){ return p.xori });
+	var yoris = this.points.map(function(p){ return p.yori });
+	this.xmax = Math.max.apply(Math, xoris);
+	this.ymax = Math.max.apply(Math, yoris);
+	this.xmin = Math.min.apply(Math, xoris);
+	this.ymin = Math.min.apply(Math, yoris);
+	this.orient();
 }
 Contour.prototype.orient = function() {
 	// Findout PYmin
@@ -43,22 +43,22 @@ Contour.prototype.orient = function() {
 	else if(x === 0) this.ccw = p2.xori > p1.xori
 }
 var inPoly = function (point, vs) {
-    // ray-casting algorithm based on
-    // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
-    
-    var x = point.xori, y = point.yori;
-    
-    var inside = false;
-    for (var i = 0, j = vs.length - 2; i < vs.length - 1; j = i++) {
-        var xi = vs[i].xori, yi = vs[i].yori;
-        var xj = vs[j].xori, yj = vs[j].yori;
-        
-        var intersect = ((yi > y) != (yj > y))
-            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-    }
-    
-    return inside;
+	// ray-casting algorithm based on
+	// http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+	
+	var x = point.xori, y = point.yori;
+	
+	var inside = false;
+	for (var i = 0, j = vs.length - 2; i < vs.length - 1; j = i++) {
+		var xi = vs[i].xori, yi = vs[i].yori;
+		var xj = vs[j].xori, yj = vs[j].yori;
+
+		var intersect = ((yi > y) !== (yj > y))
+			&& (yj > yi ? (x - xi) * (yj - yi) < (xj - xi) * (y - yi) : (x - xi) * (yj - yi) > (xj - xi) * (y - yi));
+		if (intersect) inside = !inside;
+	}
+	
+	return inside;
 };
 Contour.prototype.includes = function(that){
 	for(var j = 0; j < that.points.length - 1; j++){
@@ -69,6 +69,16 @@ Contour.prototype.includes = function(that){
 function Glyph(contours){
 	this.contours = contours || []
 	this.stems = []
+}
+Glyph.prototype.containsPoint = function(x, y){
+	var nCW = 0, nCCW = 0;
+	for(var j = 0; j < this.contours.length; j++){
+		if(inPoly({xori: x, yori: y}, this.contours[j].points)) {
+			if(this.contours[j].ccw) nCCW += 1;
+			else nCW += 1;
+		}
+	};
+	return nCCW != nCW
 }
 
 exports.Glyph = Glyph;
