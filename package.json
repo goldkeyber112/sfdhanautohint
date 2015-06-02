@@ -1,7 +1,7 @@
 {
   "name": "sfdhanautohint",
   "description": "An optimized gridfit generator for Han characters.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "./instructor.js",
   "dependencies": {
     "yargs": "",
@@ -10,7 +10,8 @@
     "dev-null": "",
     "colors": "",
     "event-stream": "",
-    "strip-bom": ""
+    "strip-bom": "",
+    "node-static": ""
   },
   "bin": {
   	"hgfhint": "./bin/hgfhint",
@@ -19,6 +20,6 @@
   	"mergesfd": "./bin/mergesfd",
   	"mergehgi": "./bin/mergehgi",
   	"mergehgf": "./bin/mergehgf",
-  	"splitsfd": "./bin/splitsfd"
+  	"paramadj": "./bin/paramadj"
   }
 }

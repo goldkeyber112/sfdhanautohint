@@ -3,24 +3,11 @@ var fs = require('fs');
 var readline = require('readline');
 var stream = require('stream');
 var devnull = require('dev-null');
-
-
-var crypto = require('crypto');
-function md5 (text) {
-	return crypto.createHash('md5').update(text).digest('hex');
-};
-
 var yargs = require('yargs');
 var argv = yargs.argv;
 
-if(argv.help) {
-	yargs.showHelp();
-	process.exit(0)
-}
-
 var instream = argv._[0] ? fs.createReadStream(argv._[0]): process.stdin;
-var outstream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }): process.stdout;
-var w = argv.w;
+var w = argv.w || "我能吞下玻璃而不伤身体";
 var matches = [];
 var rl = readline.createInterface(instream, devnull());
 
@@ -51,6 +38,21 @@ rl.on('line', function(line) {
 	};
 });
 
+var nodeStatic = require("node-static");
+var fileServer = new nodeStatic.Server(require('path').resolve(__dirname, "../previewer"));
+
 rl.on('close', function() {
-	outstream.write('\n\n' + matches.join('\n\n'))
+	var port = process.env.PORT || 9527;
+	// Start a web server which displays an user interface for parameter adjustment
+	require('http').createServer(function(request, response){
+		request.addListener("end", function(){
+			if(request.url === "/characters.json") {
+				response.setHeader("Content-Type", "application/json;charset=UTF-8");
+				response.end(JSON.stringify(matches));
+			} else {
+				fileServer.serve(request, response);
+			}
+		}).resume();
+	}).listen(port);
+	console.log("Server listening at port " + port);
 });

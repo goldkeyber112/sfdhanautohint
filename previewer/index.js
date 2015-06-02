@@ -4,7 +4,7 @@ var extractFeature = require('../extractfeature').extractFeature;
 var hint = require('../hinter').hint;
 
 
-var strategy = {
+var defaultStrategy = {
 	UPM: 1000,
 	MIN_STEM_WIDTH: 20,
 	MAX_STEM_WIDTH: 100,
@@ -39,13 +39,8 @@ var strategy = {
 	DONT_ADJUST_STEM_WIDTH: false,
 	PPEM_STEM_WIDTH_GEARS: [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
 };
-var glyphs = document.getElementById('source').value.match(/SplineSet\n[\s\S]*?EndSplineSet/g).map(function(passage, j){
-	var glyph = parseSFD(passage.slice(9, -12))
-	return {
-		glyph : glyph,
-		features: extractFeature(findStems(glyph, strategy), strategy)
-	}
-});
+var strategy = Object.create(defaultStrategy);
+var glyphs;
 function interpolate(a, b, c){
 	if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
 	else if(c.yori >= b.yori) c.ytouch = c.yori - b.yori + b.ytouch;
@@ -99,7 +94,7 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem){
 		var actions = hint(features, ppem, strategy);
 
 		// Top blues
-		features.topBluePoints.forEach(function(pid){ 
+		features.topBluePoints.forEach(function(pid){
 			glyph.indexedPoints[pid].touched = true;
 			glyph.indexedPoints[pid].ytouch = rtg(strategy.BLUEZONE_TOP_CENTER)
 		})
@@ -166,7 +161,7 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem){
 			}
 			hTemp.closePath();
 		}
-		hTemp.fill('nonzero');		
+		hTemp.fill('nonzero');
 	};
 
 	// Downsampling
@@ -227,6 +222,14 @@ var strategyControlGroups = [
 
 function createAdjusters(){
 	var container = document.getElementById('adjusters');
+	function update(){
+		setTimeout(render, 100);
+		var buf = [];
+		for(var k in strategy) if(strategy[k] !== defaultStrategy[k]) buf.push("--" + k + "=" + strategy[k]);
+		resultPanel.innerHTML = buf.join(' ');
+		return false;
+	}
+	// Numeric parameters
 	for(var g = 0; g < strategyControlGroups.length; g++) {
 		var ol = document.createElement('ol')
 		for(var j = 0; j < strategyControlGroups[g].length; j++){
@@ -240,7 +243,7 @@ function createAdjusters(){
 
 				input.onchange = function(){
 					strategy[key] = input.value - 0;
-					setTimeout(render, 100);
+					update();
 				};
 				function btn(shift){
 					var button = document.createElement('button');
@@ -248,8 +251,7 @@ function createAdjusters(){
 					button.onclick = function(){
 						strategy[key] += shift;
 						input.value = strategy[key]
-						setTimeout(render, 100);
-						return false;
+						update();
 					}
 					d.appendChild(button)
 				};
@@ -270,7 +272,19 @@ function createAdjusters(){
 			})(key)
 		}
 		container.appendChild(ol);
-	}
-}
-createAdjusters()
-render()
+	};
+	// Result panel
+	var resultPanel = document.createElement("div");
+	container.appendChild(resultPanel);
+};
+$.getJSON("/characters.json", function(data){
+	glyphs = data.map(function(passage, j){
+		var glyph = parseSFD(passage.slice(9, -12))
+		return {
+			glyph : glyph,
+			features: extractFeature(findStems(glyph, strategy), strategy)
+		}
+	});
+	createAdjusters();
+	render();
+});
