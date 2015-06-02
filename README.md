@@ -25,5 +25,7 @@ Usage
 The main command `hanhint` takes a Truetype (quadratic), unhinted `.sfd` font file into hinted font.
 
 ```bash
-hanhint <infile> -o <outfile> {--<STRATEGY_PARAMETER_NAME> <STRATEGY_PARAMETER_VALUE>}
+extract-features <infile.sfd> -o <features.hgf> {--<STRATEGY_PARAMETER_NAME> <STRATEGY_PARAMETER_VALUE>}
+hgfhint <features.hgf> -o <instructions.hgi> {--<STRATEGY_PARAMETER_NAME> <STRATEGY_PARAMETER_VALUE>}
+weave <infile.sfd> <instructions.hgi> -o <hinted.sfd> {--<STRATEGY_PARAMETER_NAME> <STRATEGY_PARAMETER_VALUE>}
 ```
