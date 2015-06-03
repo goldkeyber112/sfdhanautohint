@@ -272,10 +272,12 @@ $.getJSON("/characters.json", function(data){
 		defaultStrategy = strg.default;
 		strategy = strg.start;
 		glyphs = data.map(function(passage, j){
-			var glyph = parseSFD(passage.slice(9, -12))
-			return {
-				glyph : glyph,
-				features: extractFeature(findStems(glyph, strategy), strategy)
+			if(passage){
+				var glyph = parseSFD(passage.slice(9, -12))
+				return {
+					glyph : glyph,
+					features: extractFeature(findStems(glyph, strategy), strategy)
+				}
 			}
 		});
 		createAdjusters();
