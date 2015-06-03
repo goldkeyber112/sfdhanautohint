@@ -4,42 +4,8 @@ var extractFeature = require('../extractfeature').extractFeature;
 var hint = require('../hinter').hint;
 
 
-var defaultStrategy = {
-	UPM: 1000,
-	MIN_STEM_WIDTH: 20,
-	MAX_STEM_WIDTH: 100,
-	MOST_COMMON_STEM_WIDTH: 65,
-	STEM_SIDE_MIN_RISE: 40,
-	STEM_SIDE_MIN_DESCENT: 60,
-	PPEM_MIN: 10,
-	PPEM_MAX: 36,
-	POPULATION_LIMIT: 400,
-	CHILDREN_LIMIT: 175,
-	EVOLUTION_STAGES: 40,
-	MUTANT_PROBABLITY: 0.1,
-	ELITE_COUNT: 10,
-	ABLATION_IN_RADICAL: 1,
-	ABLATION_RADICAL_EDGE: 2,
-	ABLATION_GLYPH_EDGE: 15,
-	ABLATION_GLYPH_HARD_EDGE: 25,
-	COEFF_PORPORTION_DISTORTION: 4,
-	BLUEZONE_BOTTOM_CENTER: -77,
-	BLUEZONE_TOP_CENTER: 836,
-	BLUEZONE_BOTTOM_LIMIT: -65,
-	BLUEZONE_TOP_LIMIT: 810,
-	BLUEZONE_WIDTH: 15,
-	COEFF_A_MULTIPLIER: 10,
-	COEFF_A_SAME_RADICAL: 4,
-	COEFF_A_FEATURE_LOSS: 15,
-	COEFF_A_RADICAL_MERGE: 1,
-	COEFF_C_MULTIPLIER: 40,
-	COEFF_C_SAME_RADICAL: 6,
-	COEFF_S: 10000,
-	COLLISION_MIN_OVERLAP_RATIO: 0.2,
-	DONT_ADJUST_STEM_WIDTH: false,
-	PPEM_STEM_WIDTH_GEARS: [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
-};
-var strategy = Object.create(defaultStrategy);
+var defaultStrategy;
+var strategy;
 var glyphs;
 function interpolate(a, b, c){
 	if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
@@ -225,7 +191,7 @@ function createAdjusters(){
 	function update(){
 		setTimeout(render, 100);
 		var buf = [];
-		for(var k in strategy) if(strategy[k] !== defaultStrategy[k]) buf.push("--" + k + "=" + strategy[k]);
+		for(var k in strategy) if((typeof strategy[k] === 'number' || typeof strategy[k] === 'string') && strategy[k] !== defaultStrategy[k]) buf.push("--" + k + "=" + strategy[k]);
 		resultPanel.innerHTML = buf.join(' ');
 		return false;
 	}
@@ -273,18 +239,44 @@ function createAdjusters(){
 		}
 		container.appendChild(ol);
 	};
+	// --gears
+	(function(){
+		var ol = document.createElement('ol');
+		var d = document.createElement('li');
+		d.innerHTML += '<span>gears</span>';
+		d.className = "text"
+		var input = document.createElement('input');
+		input.value = JSON.stringify(strategy.PPEM_STEM_WIDTH_GEARS);
+		input.onchange = function(){
+			try {
+				var g = JSON.parse(input.value);
+				strategy.PPEM_STEM_WIDTH_GEARS = g;
+				strategy.gears = JSON.stringify(input.value);
+				update();
+			} catch(ex) {
+				
+			}
+		};
+		d.appendChild(input);
+		ol.appendChild(d);
+		container.appendChild(ol);
+	})();
 	// Result panel
 	var resultPanel = document.createElement("div");
 	container.appendChild(resultPanel);
 };
 $.getJSON("/characters.json", function(data){
-	glyphs = data.map(function(passage, j){
-		var glyph = parseSFD(passage.slice(9, -12))
-		return {
-			glyph : glyph,
-			features: extractFeature(findStems(glyph, strategy), strategy)
-		}
+	$.getJSON("/strategy.json", function(strg){
+		defaultStrategy = strg;
+		strategy = Object.create(defaultStrategy);
+		glyphs = data.map(function(passage, j){
+			var glyph = parseSFD(passage.slice(9, -12))
+			return {
+				glyph : glyph,
+				features: extractFeature(findStems(glyph, strategy), strategy)
+			}
+		});
+		createAdjusters();
+		render();
 	});
-	createAdjusters();
-	render();
 });

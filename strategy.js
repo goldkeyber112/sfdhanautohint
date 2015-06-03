@@ -2,7 +2,7 @@ exports.from = function(argv){
 	var strategy = {
 		UPM: 1000,
 		MIN_STEM_WIDTH: 20,
-		MAX_STEM_WIDTH: 140,
+		MAX_STEM_WIDTH: 100,
 		MOST_COMMON_STEM_WIDTH: 65,
 		STEM_SIDE_MIN_RISE: 40,
 		STEM_SIDE_MIN_DESCENT: 60,
@@ -32,7 +32,7 @@ exports.from = function(argv){
 		COEFF_S: 10000,
 		COLLISION_MIN_OVERLAP_RATIO: 0.2,
 		DONT_ADJUST_STEM_WIDTH: false,
-		PPEM_STEM_WIDTH_GEARS: [[0, 1, 1], [13, 1, 2], [21, 2, 2], [27, 2, 3], [32, 3, 3]]
+		PPEM_STEM_WIDTH_GEARS: [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
 	};
 
 	for(var prop in strategy) {

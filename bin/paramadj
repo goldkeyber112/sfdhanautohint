@@ -6,6 +6,8 @@ var devnull = require('dev-null');
 var yargs = require('yargs');
 var argv = yargs.argv;
 
+var strategy = require('../strategy').from(argv);
+
 var instream = argv._[0] ? fs.createReadStream(argv._[0]): process.stdin;
 var w = argv.w || "我能吞下玻璃而不伤身体";
 var matches = [];
@@ -49,6 +51,9 @@ rl.on('close', function() {
 			if(request.url === "/characters.json") {
 				response.setHeader("Content-Type", "application/json;charset=UTF-8");
 				response.end(JSON.stringify(matches));
+			} else if(request.url === "/strategy.json") {
+				response.setHeader("Content-Type", "application/json;charset=UTF-8");
+				response.end(JSON.stringify(strategy));
 			} else {
 				fileServer.serve(request, response);
 			}
