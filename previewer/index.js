@@ -264,11 +264,13 @@ function createAdjusters(){
 	// Result panel
 	var resultPanel = document.createElement("div");
 	container.appendChild(resultPanel);
+	
+	setTimeout(update, 0);
 };
 $.getJSON("/characters.json", function(data){
 	$.getJSON("/strategy.json", function(strg){
-		defaultStrategy = strg;
-		strategy = Object.create(defaultStrategy);
+		defaultStrategy = strg.default;
+		strategy = strg.start;
 		glyphs = data.map(function(passage, j){
 			var glyph = parseSFD(passage.slice(9, -12))
 			return {
@@ -277,6 +279,5 @@ $.getJSON("/characters.json", function(data){
 			}
 		});
 		createAdjusters();
-		render();
 	});
 });

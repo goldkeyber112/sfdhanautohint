@@ -7,6 +7,7 @@ var yargs = require('yargs');
 var argv = yargs.argv;
 
 var strategy = require('../strategy').from(argv);
+var defaultStrategy = require('../strategy').defaultStrategy;
 
 var instream = argv._[0] ? fs.createReadStream(argv._[0]): process.stdin;
 var w = argv.w || "我能吞下玻璃而不伤身体";
@@ -53,7 +54,10 @@ rl.on('close', function() {
 				response.end(JSON.stringify(matches));
 			} else if(request.url === "/strategy.json") {
 				response.setHeader("Content-Type", "application/json;charset=UTF-8");
-				response.end(JSON.stringify(strategy));
+				response.end(JSON.stringify({
+					start: strategy,
+					default: defaultStrategy
+				}));
 			} else {
 				fileServer.serve(request, response);
 			}

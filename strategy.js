@@ -1,5 +1,6 @@
-exports.from = function(argv){
-	var strategy = {
+var defaultStrategy = function(){
+	var g = [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
+	return {
 		UPM: 1000,
 		MIN_STEM_WIDTH: 20,
 		MAX_STEM_WIDTH: 100,
@@ -32,9 +33,13 @@ exports.from = function(argv){
 		COEFF_S: 10000,
 		COLLISION_MIN_OVERLAP_RATIO: 0.2,
 		DONT_ADJUST_STEM_WIDTH: false,
-		PPEM_STEM_WIDTH_GEARS: [[0,1,1],[22,2,1],[23,2,2],[35,3,2]]
-	};
-
+		PPEM_STEM_WIDTH_GEARS: g,
+		gears: JSON.stringify(g)
+	}
+};
+exports.defaultStrategy = defaultStrategy();
+exports.from = function(argv){
+	var strategy = defaultStrategy();
 	for(var prop in strategy) {
 		if(argv[prop]) {
 			strategy[prop] = isFinite(argv[prop] - 0) ? argv[prop] : strategy[prop]
@@ -43,6 +48,7 @@ exports.from = function(argv){
 	if(argv.gears) {
 		try {
 			strategy.PPEM_STEM_WIDTH_GEARS = JSON.parse(argv.gears)
+			strategy.gears = argv.gears
 		}catch(e){
 		}
 	};
