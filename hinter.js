@@ -64,8 +64,8 @@ function hint(glyph, ppem, strategy) {
 	var uppx = upm / ppem;
 	var pixelBottom = -round(-BLUEZONE_BOTTOM_CENTER);
 	var pixelTop = round(BLUEZONE_TOP_CENTER);
-	var glyfBottom = Math.max(round(glyph.stats.ymin), pixelBottom);
-	var glyfTop = Math.min(round(glyph.stats.ymax), pixelTop);
+	var glyfBottom = pixelBottom;
+	var glyfTop = pixelTop;
 
 	function round(y){ return Math.round(y / upm * ppem) / ppem * upm }
 	function roundDown(y){ return Math.floor(y / upm * ppem) / ppem * upm }
