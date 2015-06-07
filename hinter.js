@@ -15,6 +15,8 @@ function hint(glyph, ppem, strategy) {
 	var EVOLUTION_STAGES 			= strategy.EVOLUTION_STAGES || 15;
 	var MUTANT_PROBABLITY			= strategy.MUTANT_PROBABLITY || 0.4;
 	var ELITE_COUNT      			= strategy.ELITE_COUNT || 10;
+	
+	var COEFF_DISTORT           	= strategy.COEFF_DISTORT || 10;
 
 	var blueFuzz					= strategy.BLUEZONE_WIDTH || 15;
 
@@ -225,8 +227,9 @@ function hint(glyph, ppem, strategy) {
 			if(!adjustDownward(stems, overlaps, j, bottom)) return false;
 		}
 		return false;
-	}
+	};
 	var overlaps = glyph.stemOverlaps;
+	var directOverlaps = glyph.directOverlaps;
 	
 	// Pass 1. Early Uncollide
 	// In this pass we move stems to avoid collisions between them.
@@ -270,7 +273,7 @@ function hint(glyph, ppem, strategy) {
 				}
 				stem.allowMoveUpward = stem.ytouch < pixelTop - uppx - blueFuzz
 			}
-		};		
+		};
 	}
 	function earlyUncollide(stems){
 		if(!stems.length) return;
@@ -321,13 +324,19 @@ function hint(glyph, ppem, strategy) {
 		var n = y.length;
 		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
-				if(y[j] === y[k]) p += A[j][k]
+				if(y[j] === y[k]) p += A[j][k];
 				else if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
-				if(y[j] < y[k] || Math.abs(avaliables[j].center - avaliables[k].center) < 4 && y[j] !== y[k]) p += S[j][k]
+				if(y[j] < y[k] || Math.abs(avaliables[j].center - avaliables[k].center) < 4 && y[j] !== y[k]) p += S[j][k];
+				else if(directOverlaps[j][k] && y[j] > y[k]) for(var w = 0; w < k; w++) if(directOverlaps[k][w] && y[k] > y[w]) {
+					if(avaliables[j].center - avaliables[k].center > avaliables[k].center - avaliables[w].center && y[j] - y[k] < y[k] - y[w]
+					|| avaliables[j].center - avaliables[k].center <= avaliables[k].center - avaliables[w].center && y[j] - y[k] > y[k] - y[w]) {
+						p += (C[j][k] + C[k][w]) * COEFF_DISTORT;
+					}
+				}
 			};
 		};
-		return p;	
-	}
+		return p;
+	};
 	function ablationPotential(y, A, C, S, avaliables) {
 		var p = 0;
 		var n = y.length;
@@ -414,6 +423,7 @@ function hint(glyph, ppem, strategy) {
 			var elite = population[0];
 			for(var j = 0; j < population.length; j++) if(population[j].fitness > elite.fitness) elite = population[j];
 			elites.push(elite);
+			if(elite.collidePotential <= 0) break;
 		};
 
 		population = elites.concat(population);
@@ -512,9 +522,9 @@ function hint(glyph, ppem, strategy) {
 								|| stem.width > stem.touchwidth && stem.width - stem.touchwidth <= 0.25 * uppx && (sb >= 1.75 * uppx || stem.posKeyAtTop && sa >= 1.75 * uppx);
 
 			if(canUseMdrp && (stem.ytouch - stem.width >= pixelBottom || atGlyphBottom(stem))) {
-				var adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx];
+				adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx];
 			} else {
-				var adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx, Math.round(stem.touchwidth / uppx)]
+				adv = ['ALIGNW', stem.posKey.id, stem.advKey.id, stem.width / uppx, Math.round(stem.touchwidth / uppx)]
 			}
 			instructions.push({
 				pos: pos,

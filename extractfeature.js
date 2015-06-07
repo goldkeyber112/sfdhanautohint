@@ -149,8 +149,21 @@ exports.extractFeature = function(glyph, strategy) {
 			if(contourKeypoints.length > 1) { interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI)) }
 			interpolateByKeys(contourExtrema, glyphKeypoints)
 		}
-	}
-	findInterpolates(glyph.contours)
+	};
+	findInterpolates(glyph.contours);
+	var directOverlaps = (function(){
+		var d = [];
+		for(var j = 0; j < glyph.stemOverlaps.length; j++){
+			d[j] = [];
+			for(var k = 0; k < j; k++) {
+				d[j][k] = glyph.stemOverlaps[j][k] > strategy.COLLISION_MIN_OVERLAP_RATIO
+			}
+		};
+		for(var x = 0; x < d.length; x++) for(var y = 0; y < d.length; y++) for(var z = 0; z < d.length; z++) {
+			if(d[x][y] && d[y][z]) d[x][z] = false;
+		};
+		return d;
+	})();
 	return {
 		stats: glyph.stats,
 		stems: glyph.stems.map(function(s){
@@ -188,6 +201,7 @@ exports.extractFeature = function(glyph, strategy) {
 			}
 		}),
 		stemOverlaps: glyph.stemOverlaps,
+		directOverlaps: directOverlaps,
 		collisionMatrices: glyph.collisionMatrices,
 		topBluePoints: topBluePoints.map(function(x){ return x.id }),
 		bottomBluePoints: bottomBluePoints.map(function(x){ return x.id }),
