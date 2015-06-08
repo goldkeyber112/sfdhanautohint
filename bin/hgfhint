@@ -18,21 +18,23 @@ var yargs = require('yargs')
 	.alias('silent', 'quiet')
 	.alias('verbose', 'v')
 	.boolean(['just_modify_cvt', 'silent', 'verbose'])
-	.usage('$0 [Options] [<input.sfd>] [-o <output.sfd>]\n\
-	       |Replace gridfit instructions in quadtaric SFD input file and rewrite the output file.\n\
-	       |When the output file is missing, standard output is used instead.\n\
-	       |When the input file is missing, standard input is used isntead.\n\
-	       |\n\
+	.usage('$0 [Options] [<input.hgf>] [-o <output.hgi>]\n\
+	       |Generate Gridfit Instructions from feature file.\n\
 	       |The new gridfits are optimized for Han characters.\n\
 	       |'.replace(/^\s*\|/gm, ''))
 	.describe('help', 'Displays this help.')
 	.describe('o', 'Output sfd path. When absent, the result sfd is written to STDOUT.')
+	.describe('d', 'Only process dk+m\'th glyphs in the feature file. Combine with -m for parallel processing.')
+	.describe('m', 'Only process dk+m\'th glyphs in the feature file. Combine with -d for parallel processing.')
 	.describe('UPM', 'Specify the units-per-em (upm) value for the input. Default: 1000.')
-	.describe('PPEM_MIN', 'Switch hints below this PPEM value. Default: 10.')
-	.describe('PPEM_MAX', 'Switch hints above this PPEM value. Default: 36.')
-	.describe('silent', 'Run in quiet mode')
-	.describe('verbose', 'Run in verbose mode')
-	.describe('just_modify_cvt', 'Don\'t change any Truetype insructions, just append items into the cvt table.')
+	.describe('PPEM_MIN', 'Disable gridfits below this PPEM value. Default: 10.')
+	.describe('PPEM_MAX', 'Disable gridfits above this PPEM value. Default: 36.')
+	.describe('MIN_STEM_WIDTH', 'Specify the min width of horizontal strokes. Default: 20.')
+	.describe('MAX_STEM_WIDTH', 'Specify the max width of horizontal strokes. Default: 100.')
+	.describe('MOST_COMMON_STEM_WIDTH', 'Specify the most common width of horizontal strokes. Default: 65.')
+	.describe('gears', 'Specify how wide for strokes under each ppem in pixels. Format: [[ppem1,commonwidth1,minwidth1],[ppem2,commonwidth2,minwidth2],...]')
+	.describe('silent', 'Run in quiet mode, do not output progress.')
+	.describe('verbose', 'Run in verbose mode.')
 
 var argv = yargs.argv;
 
