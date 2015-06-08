@@ -17,7 +17,6 @@
   	"hgfhint": "./bin/hgfhint",
     "extract-features": "./bin/extract-features",
     "weave": "./bin/weave",
-  	"mergesfd": "./bin/mergesfd",
   	"mergehgi": "./bin/mergehgi",
   	"mergehgf": "./bin/mergehgf",
   	"paramadj": "./bin/paramadj"
