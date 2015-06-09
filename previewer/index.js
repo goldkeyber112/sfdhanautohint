@@ -109,7 +109,7 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem){
 	hTemp.fillRect(0, 0, eTemp.width, eTemp.height);
 
 	function txp(x){ return (x / strategy.UPM * ppem) * 3 * SUPERSAMPLING }
-	function typ(y){ return Math.round((- y + strategy.BLUEZONE_TOP_CENTER) / strategy.UPM * ppem) * 3}
+	function typ(y){ return (Math.round(-y / strategy.UPM * ppem) + Math.round(strategy.BLUEZONE_TOP_CENTER / strategy.UPM * ppem)) * 3}
 	// Fill
 	hTemp.fillStyle = 'black';
 	for(var m = 0; m < glyphs.length; m++){
