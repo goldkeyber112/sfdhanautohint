@@ -103,6 +103,30 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		tt.push('MIAP[rnd]');
 	};
 
+	for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++) {
+		var topPixels = strategy.BLUEZONE_TOP_CENTER / upm * ppem;
+		var bottomPixels = strategy.BLUEZONE_BOTTOM_CENTER / upm * ppem;
+		var rtgTopPixels = Math.round(topPixels);
+		var rtgBottomPixels = Math.round(bottomPixels);
+		if(Math.abs(topPixels - rtgTopPixels) >= 0.4375) {
+			tt.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
+			var cvtid = cvt.indexOf(Math.round(rtgTopPixels / ppem * upm), padding);
+			for(var k = 0; k < glyph.topBluePoints.length; k++){
+				pushargs(tt, [glyph.topBluePoints[k], cvtid]);
+				tt.push('MIAP[rnd]');
+			};
+			tt.push('EIF');
+		};
+		if(Math.abs(bottomPixels - rtgBottomPixels) >= 0.4375) {
+			tt.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
+			var cvtid = cvt.indexOf(Math.round(rtgBottomPixels / ppem * upm), padding);
+			for(var k = 0; k < glyph.bottomBluePoints.length; k++){
+				pushargs(tt, [glyph.bottomBluePoints[k], cvtid]);
+				tt.push('MIAP[rnd]');
+			};
+			tt.push('EIF');
+		};
+	}
 
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
@@ -126,64 +150,66 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 
 	var mirps = [];
 	if(glyph.stems.length) {
-		for(var ppem = 0; ppem < actions.length; ppem++) if(actions[ppem]){
-			var instrs = actions[ppem];
-			var deltas = [];
-			var args = [];
-			var movements = [];
-			for(var k = 0; k < instrs.length; k++) {
-				var d = decideDelta(2, instrs[k].pos[2], instrs[k].pos[3], upm, ppem);
-				if(d >= 0) deltas.push({ id: instrs[k].pos[1], delta: d });
-
-				if(instrs[k].adv.length > 4) {
-					var touchedStemWidthPixels 	= (instrs[k].adv[4] || 0);
-					var originalStemWidthPixels	= (instrs[k].adv[3] || 0);
-					var originalAdvKeyPosition 	= instrs[k].pos[2] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[3] * (upm / ppem);
-					var targetAdvKeyPosition   	= instrs[k].pos[3] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[4] * (upm / ppem);
-					var d = decideDelta(2, originalAdvKeyPosition, targetAdvKeyPosition, upm, ppem);
-					if(d >= 0) {
-						deltas.push({ id: instrs[k].adv[2], delta: d });
-					} else if(d === -1) {
-						// IGNORE
-					} else if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
-						args.push(instrs[k].adv[2], instrs[k].pos[1]);
-						movements.push('MDRP[rnd,grey]', 'SRP0');
-					} else {
-						var cvtwidth = (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
-						var cvtj = cvt.indexOf(cvtwidth, padding);
-						if(cvtj >= 0) {
-							args.push(instrs[k].adv[2], cvtj, instrs[k].pos[1]);
-							movements.push('MIRP[0]', 'SRP0');
+		for(var ppem = 0; ppem < actions.length; ppem++) {
+			if(actions[ppem]) {
+				var instrs = actions[ppem];
+				var deltas = [];
+				var args = [];
+				var movements = [];
+				for(var k = 0; k < instrs.length; k++) {
+					var d = decideDelta(2, instrs[k].pos[2], instrs[k].pos[3], upm, ppem);
+					if(d >= 0) deltas.push({ id: instrs[k].pos[1], delta: d });
+	
+					if(instrs[k].adv.length > 4) {
+						var touchedStemWidthPixels 	= (instrs[k].adv[4] || 0);
+						var originalStemWidthPixels	= (instrs[k].adv[3] || 0);
+						var originalAdvKeyPosition 	= instrs[k].pos[2] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[3] * (upm / ppem);
+						var targetAdvKeyPosition   	= instrs[k].pos[3] + (instrs[k].orient ? (-1) : 1) * instrs[k].adv[4] * (upm / ppem);
+						var d = decideDelta(2, originalAdvKeyPosition, targetAdvKeyPosition, upm, ppem);
+						if(d >= 0) {
+							deltas.push({ id: instrs[k].adv[2], delta: d });
+						} else if(d === -1) {
+							// IGNORE
+						} else if(Math.round(originalStemWidthPixels) === touchedStemWidthPixels && Math.abs(originalStemWidthPixels - touchedStemWidthPixels) < 0.48) {
+							args.push(instrs[k].adv[2], instrs[k].pos[1]);
+							movements.push('MDRP[rnd,grey]', 'SRP0');
 						} else {
-						 	process.stderr.write([ppem, touchedStemWidthPixels, (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels)] + '\n')
-						 	var msirpwidth = (instrs[k].orient ? (-1) : 1) * ((instrs[k].adv[3] | 0) * 64);
-						 	args.push(instrs[k].adv[2], msirpwidth, instrs[k].pos[1]);
-						 	movements.push('MSIRP[0]', 'SRP0');
-						}							
-					};
-				} else {
-					args.push(instrs[k].adv[2], instrs[k].pos[1]);
-					movements.push('MDRP[0]', 'SRP0');
-				}
-			};
-			if(deltas.length) {
-				var deltapArgs = [];
-				for(var j = 0; j < deltas.length; j++){
-					deltapArgs.push(deltas[j].delta, deltas[j].id)
+							var cvtwidth = (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels);
+							var cvtj = cvt.indexOf(cvtwidth, padding);
+							if(cvtj >= 0) {
+								args.push(instrs[k].adv[2], cvtj, instrs[k].pos[1]);
+								movements.push('MIRP[0]', 'SRP0');
+							} else {
+								process.stderr.write([ppem, touchedStemWidthPixels, (instrs[k].orient ? (-1) : 1) * Math.round(upm / ppem * touchedStemWidthPixels)] + '\n')
+								var msirpwidth = (instrs[k].orient ? (-1) : 1) * ((instrs[k].adv[3] | 0) * 64);
+								args.push(instrs[k].adv[2], msirpwidth, instrs[k].pos[1]);
+								movements.push('MSIRP[0]', 'SRP0');
+							}
+						};
+					} else {
+						args.push(instrs[k].adv[2], instrs[k].pos[1]);
+						movements.push('MDRP[0]', 'SRP0');
+					}
 				};
-				deltapArgs.push(deltapArgs.length >> 1)
-				pushargs(deltaInstructions, deltapArgs);
-				deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
-			};
-			var ppemSpecificMRPs = [];
-			if(args.length) {
-				pushargs(ppemSpecificMRPs, args)
-				ppemSpecificMRPs = ppemSpecificMRPs.concat(movements.reverse());
-			};
-			if(ppemSpecificMRPs.length) {
-				mirps.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
-				mirps = mirps.concat(ppemSpecificMRPs);
-				mirps.push('EIF');				
+				if(deltas.length) {
+					var deltapArgs = [];
+					for(var j = 0; j < deltas.length; j++){
+						deltapArgs.push(deltas[j].delta, deltas[j].id)
+					};
+					deltapArgs.push(deltapArgs.length >> 1)
+					pushargs(deltaInstructions, deltapArgs);
+					deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
+				};
+				var ppemSpecificMRPs = [];
+				if(args.length) {
+					pushargs(ppemSpecificMRPs, args)
+					ppemSpecificMRPs = ppemSpecificMRPs.concat(movements.reverse());
+				};
+				if(ppemSpecificMRPs.length) {
+					mirps.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
+					mirps = mirps.concat(ppemSpecificMRPs);
+					mirps.push('EIF');
+				}
 			}
 		};
 	};
