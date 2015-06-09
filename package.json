@@ -1,7 +1,7 @@
 {
   "name": "sfdhanautohint",
   "description": "An optimized gridfit generator for Han characters.",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "main": "./instructor.js",
   "dependencies": {
     "yargs": "",
@@ -16,7 +16,7 @@
   "bin": {
   	"hgfhint": "./bin/hgfhint",
     "extract-features": "./bin/extract-features",
-    "weave": "./bin/weave",
+    "applyhgi": "./bin/applyhgi",
   	"mergehgi": "./bin/mergehgi",
   	"mergehgf": "./bin/mergehgf",
   	"paramadj": "./bin/paramadj"
