@@ -1,4 +1,5 @@
-var util = require('util')
+var util = require('util');
+var roundings = require('./roundings');
 
 function hint(glyph, ppem, strategy) {
 	var upm							= strategy.UPM || 1000;
@@ -61,15 +62,16 @@ function hint(glyph, ppem, strategy) {
 	}
 	var stems = glyph.stems.sort(byyori);
 
+	var round = roundings.Rtg(upm, ppem);
+	var roundDown = roundings.Rdtg(upm, ppem);
+	var roundUp = roundings.Rutg(upm, ppem);
+
 	var uppx = upm / ppem;
 	var pixelBottom = round(BLUEZONE_BOTTOM_CENTER);
 	var pixelTop = round(BLUEZONE_TOP_CENTER);
 	var glyfBottom = pixelBottom;
 	var glyfTop = pixelTop;
-
-	function round(y){ return Math.round(y / upm * ppem) / ppem * upm }
-	function roundDown(y){ return Math.floor(y / upm * ppem) / ppem * upm }
-	function roundUp(y){ return Math.ceil(y / upm * ppem) / ppem * upm }
+	
 	function roundDownStem(stem){
 		stem.roundMethod = -1; // Positive for round up, negative for round down
 		stem.ytouch = roundDown(stem.yori);

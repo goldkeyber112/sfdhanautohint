@@ -103,31 +103,6 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		tt.push('MIAP[rnd]');
 	};
 
-	for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++) {
-		var topPixels = strategy.BLUEZONE_TOP_CENTER / upm * ppem;
-		var bottomPixels = strategy.BLUEZONE_BOTTOM_CENTER / upm * ppem;
-		var rtgTopPixels = Math.round(topPixels);
-		var rtgBottomPixels = Math.round(bottomPixels);
-		if(Math.abs(topPixels - rtgTopPixels) >= 0.4375) {
-			tt.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
-			var cvtid = cvt.indexOf(Math.round(rtgTopPixels / ppem * upm), padding);
-			for(var k = 0; k < glyph.topBluePoints.length; k++){
-				pushargs(tt, [glyph.topBluePoints[k], cvtid]);
-				tt.push('MIAP[rnd]');
-			};
-			tt.push('EIF');
-		};
-		if(Math.abs(bottomPixels - rtgBottomPixels) >= 0.4375) {
-			tt.push('MPPEM', 'PUSHB_1', ppem, 'EQ', 'IF');
-			var cvtid = cvt.indexOf(Math.round(rtgBottomPixels / ppem * upm), padding);
-			for(var k = 0; k < glyph.bottomBluePoints.length; k++){
-				pushargs(tt, [glyph.bottomBluePoints[k], cvtid]);
-				tt.push('MIAP[rnd]');
-			};
-			tt.push('EIF');
-		};
-	}
-
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
 	if(glyph.stems.length) {

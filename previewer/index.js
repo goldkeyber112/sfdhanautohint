@@ -2,6 +2,8 @@ var parseSFD = require('../sfdParser').parseSFD;
 var findStems = require('../findstem').findStems;
 var extractFeature = require('../extractfeature').extractFeature;
 var hint = require('../hinter').hint;
+var roundings = require('../roundings');
+
 
 
 var defaultStrategy;
@@ -53,7 +55,7 @@ function untouchAll(contours) {
 var SUPERSAMPLING = 8;
 var DPI = 2;
 function RenderPreviewForPPEM(hdc, basex, basey, ppem){
-	function rtg(y){ return Math.round(y / strategy.UPM * ppem) / ppem * strategy.UPM }
+	var rtg = roundings.Rtg(strategy.UPM, ppem);
 	for(var j = 0; j < glyphs.length; j++){
 		var glyph = glyphs[j].glyph, features = glyphs[j].features;
 		untouchAll(glyph.contours);

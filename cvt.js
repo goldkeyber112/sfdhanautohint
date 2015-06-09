@@ -13,10 +13,6 @@ function createCvt(src, strategy, padding){
 	var upm = strategy.UPM;
 	pushWhenAbsent(cvt, strategy.BLUEZONE_TOP_CENTER);
 	pushWhenAbsent(cvt, strategy.BLUEZONE_BOTTOM_CENTER);
-	for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++) {
-		pushWhenAbsent(cvt, Math.round(Math.round(strategy.BLUEZONE_BOTTOM_CENTER / upm * ppem) / ppem * upm));
-		pushWhenAbsent(cvt, Math.round(Math.round(strategy.BLUEZONE_TOP_CENTER / upm * ppem) / ppem * upm))
-	};
 	for(var w = 1; w <= MAX_SW; w++){
 		for(var ppem = strategy.PPEM_MIN; ppem < strategy.PPEM_MAX; ppem++){
 			pushWhenAbsent(cvt, -Math.round(strategy.UPM / ppem * w))
