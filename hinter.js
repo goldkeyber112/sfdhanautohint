@@ -62,7 +62,7 @@ function hint(glyph, ppem, strategy) {
 	var stems = glyph.stems.sort(byyori);
 
 	var uppx = upm / ppem;
-	var pixelBottom = -round(-BLUEZONE_BOTTOM_CENTER);
+	var pixelBottom = round(BLUEZONE_BOTTOM_CENTER);
 	var pixelTop = round(BLUEZONE_TOP_CENTER);
 	var glyfBottom = pixelBottom;
 	var glyfTop = pixelTop;
@@ -124,16 +124,17 @@ function hint(glyph, ppem, strategy) {
 	var avaliables = function(stems){
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
+			var w = calculateWidth(stems[j].width);
+			
 			var low = round(stems[j].yori) - uppx;
 			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
 			var high = round(stems[j].yori) + uppx;
 			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
-			var w = calculateWidth(stems[j].width);
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
 			if(atGlyphTop(stems[j])) {
 				var yrdtg = roundDown(stems[j].yori)
-				var canAdjustUpToGlyphTop = yrdtg < Math.min(high * uppx, pixelTop - blueFuzz) && yrdtg >= pixelTop - uppx - 1;
+				var canAdjustUpToGlyphTop = yrdtg < Math.min(high, pixelTop - blueFuzz) && yrdtg >= pixelTop - uppx - 1;
 				if(canAdjustUpToGlyphTop && stems[j].yori - yrdtg >= 0.47 * uppx) {
 					// Rounding-related upward adjustment
 					center = yrdtg + uppx
@@ -435,22 +436,22 @@ function hint(glyph, ppem, strategy) {
 			stems[j].ytouch = best.gene[j] * uppx;
 			//stems[j].touchwidth = uppx;
 			stems[j].roundMethod = stems[j].ytouch >= stems[j].yori ? 1 : -1;
-		}
+		};
 	};
 
 	// Pass 3 : Rebalance
 	function rebalance(stems){
 		for(var j = stems.length - 1; j >= 0; j--) if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
-		  	if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
-		  		if(stems[j].ytouch < avaliables[j].high * uppx) { 
-		  			stems[j].ytouch += uppx;
-		  		}
-		  	} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
-		  		if(stems[j].ytouch > avaliables[j].low * uppx) { 
-		  			stems[j].ytouch -= uppx
-		  		}
-		  	}
-		};		
+			if(canBeAdjustedUp(stems, overlaps, j, 1.75 * uppx) && stems[j].yori - stems[j].ytouch > 0.6 * uppx) {
+				if(stems[j].ytouch < avaliables[j].high * uppx) { 
+					stems[j].ytouch += uppx;
+				}
+			} else if(canBeAdjustedDown(stems, overlaps, j, 1.75 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
+				if(stems[j].ytouch > avaliables[j].low * uppx) { 
+					stems[j].ytouch -= uppx
+				}
+			}
+		};
 	};
 
 	// Pass 4 : Width allocation
@@ -495,7 +496,7 @@ function hint(glyph, ppem, strategy) {
 					stems[j].shiftedByWidthAllocation = true;
 				}
 			}
-		}
+		};
 
 		// Allowcate top and bottom stems
 		for(var j = 0; j < stems.length; j++) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateDown(j) };   		
