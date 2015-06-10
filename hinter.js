@@ -122,7 +122,9 @@ function hint(glyph, ppem, strategy) {
 	function atGlyphBottom(stem){
 		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow
 	};
-
+	
+	var overlaps = glyph.stemOverlaps;
+	var directOverlaps = glyph.directOverlaps;
 	var avaliables = function(stems){
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
@@ -130,6 +132,7 @@ function hint(glyph, ppem, strategy) {
 			
 			var low = round(stems[j].yori) - uppx;
 			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
+			
 			var high = round(stems[j].yori) + uppx;
 			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
@@ -144,7 +147,7 @@ function hint(glyph, ppem, strategy) {
 					// Strategy-based upward adjustment
 					center = yrdtg + uppx
 				};
-			} 
+			}
 			if(atGlyphBottom(stems[j]) && center < pixelBottom + w + 0.75 * uppx) center = pixelBottom + w;
 			center = xclamp(center, low, high);
 			
@@ -158,9 +161,26 @@ function hint(glyph, ppem, strategy) {
 				ablationCoeff: ablationCoeff / uppx,
 				proportion: (stems[j].yori - stems[0].yori) / (stems[stems.length - 1].yori - stems[0].yori) || 0
 			};
-		}
+		};
 		return avaliables;
 	}(stems);
+	var blanks = function(){
+		var blanks = [];
+		for(var j = 0; j < directOverlaps.length; j++) {
+			blanks[j] = [];
+			for(var k = 0; k < directOverlaps[j].length; k++) if(directOverlaps[j][k]) {
+				blanks[j][k] = stems[j].yori - stems[j].width - stems[k].yori;
+			}
+		};
+		return blanks;
+	}();
+	var triplets = function(){
+		var triplets = [];
+		for(var j = 0; j < stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] > 0 && blanks[k][w] > 0) {
+			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
+		};
+		return triplets;
+	}();
 
 	function initStemTouches(stems) {
 		for(var j = 0; j < stems.length; j++) {
@@ -204,14 +224,14 @@ function hint(glyph, ppem, strategy) {
 	}
 	function canBeAdjustedUp(stems, overlaps, k, distance){
 		for(var j = k + 1; j < stems.length; j++){
-			if(overlaps[j][k] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth <= distance)
+			if(directOverlaps[j][k] && (stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth <= distance)
 				return false
 		}
 		return true;
 	}
 	function canBeAdjustedDown(stems, overlaps, k, distance){
 		for(var j = 0; j < k; j++){
-			if(overlaps[k][j] > COLLISION_MIN_OVERLAP_RATIO && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth <= distance)
+			if(directOverlaps[k][j] && (stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth <= distance)
 				return false
 		}
 		return true;
@@ -231,8 +251,6 @@ function hint(glyph, ppem, strategy) {
 		}
 		return false;
 	};
-	var overlaps = glyph.stemOverlaps;
-	var directOverlaps = glyph.directOverlaps;
 	
 	// Pass 1. Early Uncollide
 	// In this pass we move stems to avoid collisions between them.
@@ -273,11 +291,11 @@ function hint(glyph, ppem, strategy) {
 			} else {
 				if(stem.ytouch < pixelTop - blueFuzz - uppx && stem.yori - stem.ytouch >= 0.47 * uppx){
 					stem.ytouch += uppx
-				}
+				};
 				stem.allowMoveUpward = stem.ytouch < pixelTop - uppx - blueFuzz
-			}
+			};
 		};
-	}
+	};
 	function earlyUncollide(stems){
 		if(!stems.length) return;
 
@@ -330,14 +348,14 @@ function hint(glyph, ppem, strategy) {
 				if(y[j] === y[k]) p += A[j][k];
 				else if(y[j] === y[k] + 1 || y[j] + 1 === y[k]) p += C[j][k];
 				if(y[j] < y[k] || Math.abs(avaliables[j].center - avaliables[k].center) < 4 && y[j] !== y[k]) p += S[j][k];
-				else if(directOverlaps[j][k] && y[j] > y[k]) for(var w = 0; w < k; w++) if(directOverlaps[k][w] && y[k] > y[w]) {
-					if(avaliables[j].center - avaliables[k].center > avaliables[k].center - avaliables[w].center && y[j] - y[k] < y[k] - y[w]
-					|| avaliables[j].center - avaliables[k].center <= avaliables[k].center - avaliables[w].center && y[j] - y[k] > y[k] - y[w]) {
-						p += (C[j][k] + C[k][w]) * COEFF_DISTORT;
-					}
-				}
 			};
 		};
+		for(var t = 0; t < triplets.length; t++){
+			var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2], d = triplets[t][3];
+			if(y[j] - y[k] > 1 && y[k] - y[w] > 1 && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w] || d === 0 && y[j] - y[k] !== y[k] - y[w])) {
+				p += (C[j][k] + C[k][w]) * COEFF_DISTORT;
+			}
+		}
 		return p;
 	};
 	function ablationPotential(y, A, C, S, avaliables) {
@@ -363,10 +381,13 @@ function hint(glyph, ppem, strategy) {
 		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
 		this.fitness = 1 / (0.0001 + Math.max(0, this.collidePotential + this.ablationPotential))
 	};
-	function crossover(father, mother){
-		var rj = Math.floor(Math.random() * father.length);
+	function crossover(father, mother) {
+		var jm = father.length - 1;
+		while(father[jm] === mother[jm] && jm >= 0) jm -= 1;
+		if(jm < 0) return;
+		var rj = Math.floor(Math.random() * (jm + 1));
 		var y1 = father.slice(0, rj).concat(mother.slice(rj));
-		if(Math.random() < MUTANT_PROBABLITY) mutant(y1)
+		if(Math.random() < MUTANT_PROBABLITY) mutant(y1);
 		return new Organism(y1);
 	};
 	function mutantAt(y1, rj, pos){
@@ -383,12 +404,16 @@ function hint(glyph, ppem, strategy) {
 		for(var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
 			var father = population[0 | Math.random() * population.length].gene;
 			var mother = population[0 | Math.random() * population.length].gene;
-			children.push(crossover(father, mother))
+			var child = crossover(father, mother)
+			if(child) children.push(child)
 		};
 		population = population.concat(children);
+		if(population.length <= POPULATION_LIMIT) return population;
 		// Selection
 		var maxFitness = 0, n = 0;
-		for(var j = 0; j < population.length; j++) if(population[j].fitness > maxFitness){ maxFitness = population[j].fitness }
+		for(var j = 0; j < population.length; j++) if(population[j].fitness > maxFitness){ 
+			maxFitness = population[j].fitness 
+		}
 		while(n < POPULATION_LIMIT) {
 			var j = 0 | Math.random() * population.length;
 			if(Math.random () <= population[j].fitness / maxFitness) {
@@ -405,19 +430,19 @@ function hint(glyph, ppem, strategy) {
 	// state vector |y>. Due to randomized mutations, the result is not deterministic, though
 	// reliable under most cases.
 	function uncollide(stems){
-
 		if(!stems.length) return;
 
 		var n = stems.length;
 		var y0 = stems.map(function(s, j){ return xclamp(Math.round(stems[j].ytouch / uppx), avaliables[j].low, avaliables[j].high) });
 
 		var population = [new Organism(y0)];
+		// Generate initial population
 		for(var j = 0; j < n; j++){
 			for(var k = avaliables[j].low; k <= avaliables[j].high; k++) if(k !== y0[j]) {
 				var y1 = y0.slice(0);
 				mutantAt(y1, j, k);
 				population.push(new Organism(y1));
-			}
+			};
 		};
 
 		var elites = [new Organism(y0)]
@@ -432,7 +457,6 @@ function hint(glyph, ppem, strategy) {
 		population = elites.concat(population);
 		var best = population[0];
 		for(var j = 1; j < population.length; j++) if(population[j].fitness > best.fitness) best = population[j];
-		
 		// Assign
 		for(var j = 0; j < stems.length; j++){
 			stems[j].ytouch = best.gene[j] * uppx;
@@ -555,7 +579,8 @@ function hint(glyph, ppem, strategy) {
 		} else {
 			initStemTouches(stems);
 			earlyAdjust(stems);
-			earlyUncollide(stems);
+			//earlyUncollide(stems);
+			rebalance(stems);
 			uncollide(stems);
 			rebalance(stems);
 		}
