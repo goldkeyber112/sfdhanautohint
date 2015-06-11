@@ -142,14 +142,21 @@ function hint(glyph, ppem, strategy) {
 				var canAdjustUpToGlyphTop = yrdtg < Math.min(high, pixelTop - blueFuzz) && yrdtg >= pixelTop - uppx - 1;
 				if(canAdjustUpToGlyphTop && stems[j].yori - yrdtg >= 0.47 * uppx) {
 					// Rounding-related upward adjustment
-					center = yrdtg + uppx
+					center += uppx
 				} else if(canAdjustUpToGlyphTop && stems[j].yori - yrdtg >= 0.25 * uppx) {
 					// Strategy-based upward adjustment
-					center = yrdtg + uppx
+					center += uppx
 				};
 			}
 			if(atGlyphBottom(stems[j]) && center < pixelBottom + w + 0.75 * uppx) center = pixelBottom + w;
 			center = xclamp(center, low, high);
+			
+			if(atGlyphBottom(stems[j])) {
+				high = center;
+			};
+			if(atGlyphTop(stems[j])) {
+				low = center;
+			}
 			
 			var ablationCoeff = atGlyphTop(stems[j]) || atGlyphBottom(stems[j]) ? ABLATION_GLYPH_HARD_EDGE
 							  : !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
@@ -352,8 +359,8 @@ function hint(glyph, ppem, strategy) {
 		};
 		for(var t = 0; t < triplets.length; t++){
 			var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2], d = triplets[t][3];
-			if(y[j] - y[k] > 1 && y[k] - y[w] > 1 && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w] || d === 0 && y[j] - y[k] !== y[k] - y[w])) {
-				p += (C[j][k] + C[k][w]) * COEFF_DISTORT;
+			if(y[j] > y[k] && y[k] > y[w] && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w])) {
+				p += (A[j][k] + A[k][w]) * COEFF_DISTORT;
 			}
 		}
 		return p;
@@ -379,12 +386,12 @@ function hint(glyph, ppem, strategy) {
 		this.gene = y;
 		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
 		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
-		this.fitness = 1 / (0.0001 + Math.max(0, this.collidePotential + this.ablationPotential))
+		this.fitness = 1 / (1 + Math.max(0, this.collidePotential * 8 + this.ablationPotential / 16))
 	};
 	function crossover(father, mother) {
 		var jm = father.length - 1;
 		while(father[jm] === mother[jm] && jm >= 0) jm -= 1;
-		if(jm < 0) return;
+		if(jm < 0) return new Organism(mutant(father.slice(0)));
 		var rj = Math.floor(Math.random() * (jm + 1));
 		var y1 = father.slice(0, rj).concat(mother.slice(rj));
 		if(Math.random() < MUTANT_PROBABLITY) mutant(y1);
@@ -395,7 +402,8 @@ function hint(glyph, ppem, strategy) {
 	};
 	function mutant(y1){
 		var rj = Math.floor(Math.random() * y1.length);
-		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)))
+		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)));
+		return y1;
 	};
 
 	function evolve(population) {
@@ -413,13 +421,12 @@ function hint(glyph, ppem, strategy) {
 		var maxFitness = 0, n = 0;
 		for(var j = 0; j < population.length; j++) if(population[j].fitness > maxFitness){ 
 			maxFitness = population[j].fitness 
-		}
+		};
 		while(n < POPULATION_LIMIT) {
-			var j = 0 | Math.random() * population.length;
-			if(Math.random () <= population[j].fitness / maxFitness) {
-				res[n] = population[j];
+			for(var j = 0; j < population.length; j++) if(population[j] && Math.random() * maxFitness <= population[j].fitness) {
 				n += 1;
-				population.splice(j, 1)
+				res.push(population[j]);
+				population[j] = null;
 			}
 		};
 		return res;
@@ -583,7 +590,7 @@ function hint(glyph, ppem, strategy) {
 			rebalance(stems);
 			uncollide(stems);
 			rebalance(stems);
-		}
+		};
 	})();
 	allocateWidth(stems);
 	touchStemPoints(stems);
