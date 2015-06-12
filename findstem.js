@@ -234,19 +234,22 @@ function findStems(glyph, strategy) {
 			// We stem segments bottom-up.
 			for(var j = 0; j < segs.length; j++) if(segs[j] && ori === (segs[j][0][0].xori < segs[j][0][segs[j][0].length - 1].xori)) {
 				var stem = {low: segs[j]};
-				for(var k = j + 1; k < segs.length; k++) if(segs[k] && overlapRatio(segs[j], segs[k]) >= MIN_OVERLAP_RATIO) {
-					if(ori !== (segs[k][0][0].xori < segs[k][0][segs[k][0].length - 1].xori)
-							&& segs[k][0][0].yori - segs[j][0][0].yori <= MAX_STEM_WIDTH
-							&& segs[k][0][0].yori - segs[j][0][0].yori >= MIN_STEM_WIDTH) {
-						// A stem is found
-						stem.high = segs[k];
-						stem.yori = stem.high[0][0].yori;
-						stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
-						stem.belongRadical = radicals[r];
-						segs[j] = segs[k] = null;
-						radicalStems.push(stem);
+				for(var k = j + 1; k < segs.length; k++) if(segs[k]){
+					var segOverlap = overlapInfo(segs[j], segs[k]);
+				if(segOverlap.len / segOverlap.la >= COLLISION_MIN_OVERLAP_RATIO || segOverlap.len / segOverlap.lb >= COLLISION_MIN_OVERLAP_RATIO) {
+						if(ori !== (segs[k][0][0].xori < segs[k][0][segs[k][0].length - 1].xori)
+								&& segs[k][0][0].yori - segs[j][0][0].yori <= MAX_STEM_WIDTH
+								&& segs[k][0][0].yori - segs[j][0][0].yori >= MIN_STEM_WIDTH) {
+							// A stem is found
+							stem.high = segs[k];
+							stem.yori = stem.high[0][0].yori;
+							stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
+							stem.belongRadical = radicals[r];
+							segs[j] = segs[k] = null;
+							radicalStems.push(stem);
+						}
+						break;
 					}
-					break;
 				}
 			};
 			stems = stems.concat(radicalStems)
