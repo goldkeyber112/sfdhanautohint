@@ -96,16 +96,22 @@ function hint(glyph, ppem, strategy) {
 			&& !(stem.hasRadicalRightAdjacentPointAbove && stem.radicalRightAdjacentRise > STEM_SIDE_MIN_RISE)
 	}
 	function atGlyphTop(stem){
-		return atRadicalTop(stem) && !stem.hasGlyphStemAbove && !stem.hasGlyphPointAbove
+		return atRadicalTop(stem) && !stem.hasGlyphStemAbove 
+			&& !(stem.hasGlyphPointAbove && stem.glyphCenterRise > STEM_CENTER_MIN_RISE)
+			&& !(stem.hasGlyphLeftAdjacentPointAbove && stem.glyphLeftAdjacentRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasGlyphRightAdjacentPointAbove && stem.glyphRightAdjacentRise > STEM_SIDE_MIN_RISE)
 	}
 	function atRadicalBottom(stem){
 		return !stem.hasSameRadicalStemBelow
 			&& !(stem.hasRadicalPointBelow && stem.radicalCenterDescent > STEM_CENTER_MIN_DESCENT)
 			&& !(stem.hasRadicalLeftAdjacentPointBelow && stem.radicalLeftAdjacentDescent > STEM_SIDE_MIN_DESCENT)
 			&& !(stem.hasRadicalRightAdjacentPointBelow && stem.radicalRightAdjacentDescent > STEM_SIDE_MIN_DESCENT)
-	}
+	};
 	function atGlyphBottom(stem){
-		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow && !stem.hasGlyphPointBelow
+		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow 
+			&& !(stem.hasGlyphPointBelow && stem.glyphCenterDescent > STEM_CENTER_MIN_DESCENT)
+			&& !(stem.hasGlyphLeftAdjacentPointBelow && stem.glyphLeftAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasGlyphRightAdjacentPointBelow && stem.glyphRightAdjacentDescent > STEM_SIDE_MIN_DESCENT)
 	};
 	
 	var overlaps = glyph.stemOverlaps;
@@ -132,10 +138,10 @@ function hint(glyph, ppem, strategy) {
 					// Strategy-based upward adjustment
 					center += uppx
 				};
-			}
+			};
 			if(atGlyphBottom(stems[j]) && center < pixelBottom + w + 0.75 * uppx) {
 				center = pixelBottom + w;
-			}
+			};
 			center = xclamp(low, center, high);
 			
 			if(!stems[j].hasGlyphStemBelow) {
@@ -220,7 +226,9 @@ function hint(glyph, ppem, strategy) {
 			ymax = y[k];
 		};
 		var c = round(avaliables[j].center) / uppx
-		if(c >= ymax + 2){
+		if(avaliables[j].low >= ymax + 2) {
+			y[j] = avaliables[j].low;
+		} else if(c >= ymax + 2){
 			y[j] = c
 		} else if(avaliables[j].high >= ymax + 2) {
 			y[j] = xclamp(avaliables[j].low, ymax + 2, avaliables[j].high)
