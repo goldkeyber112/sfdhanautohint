@@ -418,7 +418,6 @@ function findStems(glyph, strategy) {
 		};
 		return transitions
 	})();
-	console.log(overlaps, overlapLengths);
 	analyzeStemSpatialRelationships(stems, overlaps);
 	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps, overlapLengths);
 	glyph.stems = stems;
