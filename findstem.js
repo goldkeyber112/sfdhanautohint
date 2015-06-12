@@ -68,7 +68,7 @@ function findStems(glyph, strategy) {
 
 	function overlapRatio(a, b){
 		var i = overlapInfo(a, b)
-		return Math.sqrt(i.len * i.len / (i.la * i.lb))
+		return Math.min(i.len / i.la, i.len / i.lb)
 	}
 
 	function enoughOverlapBetweenSegments(a, b, ratio){
@@ -274,35 +274,63 @@ function findStems(glyph, strategy) {
 	}
 
 	// Spatial relationship analyzation
-	function analyzePointToStemSpatialRelationships(stem, radical){
+	function analyzePointToStemSpatialRelationships(stem){
 		var a0 = stem.low[0][0].xori, az = stem.low[stem.low.length - 1][stem.low[stem.low.length - 1].length - 1].xori
 		var b0 = stem.high[0][0].xori, bz = stem.high[stem.high.length - 1][stem.high[stem.high.length - 1].length - 1].xori
 		var xmin = Math.min(a0, b0, az, bz), xmax = Math.max(a0, b0, az, bz);
-		for(var j = 0; j < radical.parts.length; j++) for(var k = 0; k < radical.parts[j].points.length - 1; k++) {
-			var point = radical.parts[j].points[k];
-			if(point.yori > stem.yori && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {
-				stem.hasRadicalPointAbove = true;
-				stem.radicalCenterRise = Math.max(stem.radicalCenterRise || 0, point.yori - stem.yori)
-			}
-			if(point.yori > stem.yori && point.xori >= xmax - blueFuzz) {
-				stem.hasRadicalRightAdjacentPointAbove = true;
-				stem.radicalRightAdjacentRise = Math.max(stem.radicalRightAdjacentRise || 0, point.yori - stem.yori)
-			}
-			if(point.yori > stem.yori && point.xori <= xmin + blueFuzz) {
-				stem.hasRadicalLeftAdjacentPointAbove = true;
-				stem.radicalLeftAdjacentRise = Math.max(stem.radicalLeftAdjacentRise || 0, point.yori - stem.yori)
-			}
-			if(point.yori < stem.yori - stem.width && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {
-				stem.hasRadicalPointBelow = true;
-				stem.radicalCenterDescent = Math.max(stem.radicalCenterDescent || 0, stem.yori - stem.width - point.yori)
-			}
-			if(point.yori < stem.yori - stem.width && point.xori >= xmax - blueFuzz) {
-				stem.hasRadicalRightAdjacentPointBelow = true;
-				stem.radicalRightAdjacentDescent = Math.max(stem.radicalRightAdjacentDescent || 0, stem.yori - stem.width - point.yori)
-			}
-			if(point.yori < stem.yori - stem.width && point.xori <= xmin + blueFuzz) {
-				stem.hasRadicalLeftAdjacentPointBelow = true;
-				stem.radicalLeftAdjacentDescent = Math.max(stem.radicalLeftAdjacentDescent || 0, stem.yori - stem.width - point.yori)
+		for(var rad = 0; rad < glyph.radicals.length; rad++){
+			var radical = glyph.radicals[rad];
+			var sameRadical = (radical === stem.belongRadical);
+			for(var j = 0; j < radical.parts.length; j++) for(var k = 0; k < radical.parts[j].points.length - 1; k++) {
+				var point = radical.parts[j].points[k];
+				if(point.yori > stem.yori && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {
+					stem.hasGlyphPointAbove = true;
+					stem.glyphCenterRise = Math.max(stem.glyphCenterRise || 0, point.yori - stem.yori);
+					if(sameRadical){
+						stem.hasRadicalPointAbove = true;
+						stem.radicalCenterRise = Math.max(stem.radicalCenterRise || 0, point.yori - stem.yori);
+					}
+				}
+				if(point.yori > stem.yori && point.xori >= xmax - blueFuzz) {
+					stem.hasGlyphRightAdjacentPointAbove = true;
+					stem.glyphRightAdjacentRise = Math.max(stem.glyphRightAdjacentRise || 0, point.yori - stem.yori);
+					if(sameRadical){
+						stem.hasRadicalRightAdjacentPointAbove = true;
+						stem.RadicalRightAdjacentRise = Math.max(stem.RadicalRightAdjacentRise || 0, point.yori - stem.yori);
+					}
+				}
+				if(point.yori > stem.yori && point.xori <= xmin + blueFuzz) {
+					stem.hasGlyphLeftAdjacentPointAbove = true;
+					stem.glyphLeftAdjacentRise = Math.max(stem.glyphLeftAdjacentRise || 0, point.yori - stem.yori);
+					if(sameRadical){
+						stem.hasRadicalLeftAdjacentPointAbove = true;
+						stem.radicalLeftAdjacentRise = Math.max(stem.radicalLeftAdjacentRise || 0, point.yori - stem.yori);
+					}
+				}
+				if(point.yori < stem.yori - stem.width && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {
+					stem.hasGlyphPointBelow = true;
+					stem.glyphCenterDescent = Math.max(stem.glyphCenterDescent || 0, stem.yori - stem.width - point.yori);
+					if(sameRadical){
+						stem.hasRadicalPointBelow = true;
+						stem.radicalCenterDescent = Math.max(stem.radicalCenterDescent || 0, stem.yori - stem.width - point.yori);
+					}
+				}
+				if(point.yori < stem.yori - stem.width && point.xori >= xmax - blueFuzz) {
+					stem.hasGlyphRightAdjacentPointBelow = true;
+					stem.glyphRightAdjacentDescent = Math.max(stem.glyphRightAdjacentDescent || 0, stem.yori - stem.width - point.yori);
+					if(sameRadical){
+						stem.hasRadicalRightAdjacentPointBelow = true;
+						stem.radicalRightAdjacentDescent = Math.max(stem.radicalRightAdjacentDescent || 0, stem.yori - stem.width - point.yori);
+					}
+				}
+				if(point.yori < stem.yori - stem.width && point.xori <= xmin + blueFuzz) {
+					stem.hasGlyphLeftAdjacentPointBelow = true;
+					stem.glyphLeftAdjacentDescent = Math.max(stem.glyphLeftAdjacentDescent || 0, stem.yori - stem.width - point.yori);
+					if(sameRadical){
+						stem.hasRadicalLeftAdjacentPointBelow = true;
+						stem.radicalLeftAdjacentDescent = Math.max(stem.radicalLeftAdjacentDescent || 0, stem.yori - stem.width - point.yori);
+					}
+				}
 			}
 		}
 		stem.xmin = xmin;
@@ -325,7 +353,7 @@ function findStems(glyph, strategy) {
 	};
 
 	// Collision matrices, used to calculate collision potential
-	function calculateCollisionMatrices(stems, overlaps) {
+	function calculateCollisionMatrices(stems, overlaps, overlapLengths) {
 		// A : Alignment operator
 		// C : Collision operator
 		// S : Swap operator
@@ -340,8 +368,7 @@ function findStems(glyph, strategy) {
 		};
 		for(var j = 0; j < n; j++) {
 			for(var k = 0; k < j; k++) {
-				// var ovr = overlaps[j][k];
-				var ovr = overlaps[j][k]
+				var ovr = overlaps[j][k] * overlapLengths[j][k];
 				var coeffA = 1;
 				if(stems[j].belongRadical === stems[k].belongRadical) {
 					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
@@ -381,8 +408,19 @@ function findStems(glyph, strategy) {
 		};
 		return transitions
 	})();
+	var overlapLengths = glyph.stemOverlapLengths = (function(){
+		var transitions = [];
+		for(var j = 0; j < stems.length; j++){
+			transitions[j] = [];
+			for(var k = 0; k < stems.length; k++){
+				transitions[j][k] = stemOverlapLength(stems[j], stems[k])
+			}
+		};
+		return transitions
+	})();
+	console.log(overlaps, overlapLengths);
 	analyzeStemSpatialRelationships(stems, overlaps);
-	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps);
+	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps, overlapLengths);
 	glyph.stems = stems;
 	return glyph;
 }
