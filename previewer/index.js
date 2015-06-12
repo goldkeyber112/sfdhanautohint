@@ -8,6 +8,7 @@ var roundings = require('../roundings');
 
 var defaultStrategy;
 var strategy;
+var input;
 var glyphs;
 function interpolate(a, b, c){
 	if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
@@ -54,7 +55,7 @@ function untouchAll(contours) {
 }
 var SUPERSAMPLING = 8;
 var DPI = 2;
-function RenderPreviewForPPEM(hdc, basex, basey, ppem){
+function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 	var rtg = roundings.Rtg(strategy.UPM, ppem);
 	for(var j = 0; j < glyphs.length; j++){
 		var glyph = glyphs[j].glyph, features = glyphs[j].features;
@@ -166,6 +167,15 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem){
 };
 
 function render(){
+	glyphs = input.map(function(passage, j){
+		if(passage){
+			var glyph = parseSFD(passage.slice(9, -12))
+			return {
+				glyph : glyph,
+				features: extractFeature(findStems(glyph, strategy), strategy)
+			}
+		}
+	});
 	var hPreview = document.getElementById('preview').getContext('2d');
 	hPreview.font = (12 * DPI) + 'px sans-serif'
 	var y = 10 * DPI;
@@ -273,15 +283,7 @@ $.getJSON("/characters.json", function(data){
 	$.getJSON("/strategy.json", function(strg){
 		defaultStrategy = strg.default;
 		strategy = strg.start;
-		glyphs = data.map(function(passage, j){
-			if(passage){
-				var glyph = parseSFD(passage.slice(9, -12))
-				return {
-					glyph : glyph,
-					features: extractFeature(findStems(glyph, strategy), strategy)
-				}
-			}
-		});
+		input = data;
 		createAdjusters();
 	});
 });
