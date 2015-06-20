@@ -17,6 +17,8 @@ function hint(glyph, ppem, strategy) {
 	var MUTANT_PROBABLITY			= strategy.MUTANT_PROBABLITY || 0.4;
 	var ELITE_COUNT      			= strategy.ELITE_COUNT || 10;
 	
+	var REBALANCE_PASSES         	= strategy.REBALANCE_PASSES || 1;
+	
 	var COEFF_DISTORT           	= strategy.COEFF_DISTORT || 10;
 
 	var blueFuzz					= strategy.BLUEZONE_WIDTH || 15;
@@ -231,8 +233,10 @@ function hint(glyph, ppem, strategy) {
 		} else if(c >= ymax + 2){
 			y[j] = c
 		} else if(avaliables[j].high >= ymax + 2) {
+			// Place upward
 			y[j] = xclamp(avaliables[j].low, ymax + 2, avaliables[j].high)
 		} else if(avaliables[j].low <= ymax && avaliables[j].high >= ymax) {
+			// merge
 			y[j] = ymax;
 		} else {
 			y[j] = xclamp(avaliables[j].low, c, avaliables[j].high);
@@ -333,10 +337,28 @@ function hint(glyph, ppem, strategy) {
 		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)));
 		return y1;
 	};
+	
+	function selectPopulation(population){
+		var res = [];
+		var n = 0;
+		while(n < POPULATION_LIMIT) {
+			var maxFitness = 0;
+			for(var j = 0; j < population.length; j++) if(population[j] && population[j].fitness > maxFitness){ 
+				maxFitness = population[j].fitness 
+			};
+			if(maxFitness <= 0) break;
+			for(var j = 0; j < population.length; j++) if(population[j] && Math.random() * maxFitness <= population[j].fitness) {
+				n += 1;
+				res.push(population[j]);
+				population[j] = null;
+			}
+		};
+		return res;
+	}
 
 	function evolve(population) {
 		// Crossover
-		var res = [], children = []
+		var children = []
 		for(var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
 			var father = population[0 | Math.random() * population.length].gene;
 			var mother = population[0 | Math.random() * population.length].gene;
@@ -345,19 +367,7 @@ function hint(glyph, ppem, strategy) {
 		};
 		population = population.concat(children);
 		if(population.length <= POPULATION_LIMIT) return population;
-		// Selection
-		var maxFitness = 0, n = 0;
-		for(var j = 0; j < population.length; j++) if(population[j].fitness > maxFitness){ 
-			maxFitness = population[j].fitness 
-		};
-		while(n < POPULATION_LIMIT) {
-			for(var j = 0; j < population.length; j++) if(population[j] && Math.random() * maxFitness <= population[j].fitness) {
-				n += 1;
-				res.push(population[j]);
-				population[j] = null;
-			}
-		};
-		return res;
+		return selectPopulation(population);
 	};
 	function uncollide(stems){
 		if(!stems.length) return;
@@ -389,8 +399,6 @@ function hint(glyph, ppem, strategy) {
 		population = elites.concat(population);
 		var best = population[0];
 		for(var j = 1; j < population.length; j++) if(population[j].fitness > best.fitness) best = population[j];
-		
-		
 		// Assign
 		for(var j = 0; j < stems.length; j++){
 			stems[j].ytouch = best.gene[j] * uppx;
@@ -402,7 +410,7 @@ function hint(glyph, ppem, strategy) {
 	// Pass 3 : Rebalance
 	function rebalance(stems) {
 		var m = stems.map(function(s, j){ return [s.xmax - s.xmin, j]}).sort(function(a, b){ return b[0]  - a[0]});
-		for(var pass = 0; pass < 4; pass++) for(var jm = 0; jm < m.length; jm++){
+		for(var pass = 0; pass < REBALANCE_PASSES; pass++) for(var jm = 0; jm < m.length; jm++){
 			var j = m[jm][1];
 			if(!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
 				if(canBeAdjustedDown(stems, overlaps, j, 1.8 * uppx) && stems[j].ytouch - stems[j].yori > 0.6 * uppx) {
@@ -526,8 +534,7 @@ function hint(glyph, ppem, strategy) {
 	})();
 	allocateWidth(stems);
 	touchStemPoints(stems);
-	return instructions
-
+	return instructions;
 }
 
 exports.hint = hint;

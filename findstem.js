@@ -18,7 +18,8 @@ function findStems(glyph, strategy) {
 	var blueFuzz = strategy.BLUEZONE_WIDTH || 15;
 	var COEFF_A_MULTIPLIER = strategy.COEFF_A_MULTIPLIER || 5;
 	var COEFF_A_SAME_RADICAL = strategy.COEFF_A_SAME_RADICAL || 4;
-	var COEFF_A_FEATURE_LOSS = strategy.COEFF_A_FEATURE_LOSS || 15;
+	var COEFF_A_SHAPE_LOST = strategy.COEFF_A_SHAPE_LOST || 25;
+	var COEFF_A_FEATURE_LOSS = strategy.COEFF_A_FEATURE_LOSS || 5000;
 	var COEFF_A_RADICAL_MERGE = strategy.COEFF_A_RADICAL_MERGE || 1;
 	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 25;
 	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 3;
@@ -263,7 +264,7 @@ function findStems(glyph, strategy) {
 		var res = [];
 		for(var j = 0; j < stems.length; j++) if(stems[j]) {
 			for(var k = 0; k < stems.length; k++) if(stems[k]) {
-				if(stems[j].yori === stems[k].yori && stems[j].width === stems[k].width && stems[j].belongRadical !== stems[k].belongRadical) {
+				if(Math.abs(stems[j].yori - stems[k].yori) < 2 && stems[j].width === stems[k].width && stems[j].belongRadical !== stems[k].belongRadical) {
 					stems[j].high = stems[j].high.concat(stems[k].high);
 					stems[j].low = stems[j].low.concat(stems[k].low);
 					stems[k] = null
@@ -339,6 +340,27 @@ function findStems(glyph, strategy) {
 		stem.xmin = xmin;
 		stem.xmax = xmax;
 	};
+	function analyzePointBetweenStems(stems) {
+		var res = [];
+		for(var sj = 0; sj < stems.length; sj++) {
+			res[sj] = [];
+			for(var sk = 0; sk < sj; sk++) {
+				res[sj][sk] = false;
+				for(var rad = 0; rad < glyph.radicals.length; rad++){
+					var radical = glyph.radicals[rad];
+					for(var j = 0; j < radical.parts.length; j++) for(var k = 0; k < radical.parts[j].points.length - 1; k++) {
+						var point = radical.parts[j].points[k];
+						if(point.yori > stems[sk].yori && point.yori < stems[sj].yori - stems[sj].width
+							&& point.xori > stems[sk].xmin + blueFuzz && point.xori < stems[sk].xmax - blueFuzz
+							&& point.xori > stems[sj].xmin + blueFuzz && point.xori < stems[sj].xmax - blueFuzz) {
+								res[sj][sk] = true;
+							}
+					}
+				}
+			}
+		};
+		return res;
+	};
 	function analyzeStemSpatialRelationships(stems, overlaps) {
 		for(var k = 0; k < stems.length; k++) {
 			analyzePointToStemSpatialRelationships(stems[k], stems[k].belongRadical);
@@ -356,7 +378,7 @@ function findStems(glyph, strategy) {
 	};
 
 	// Collision matrices, used to calculate collision potential
-	function calculateCollisionMatrices(stems, overlaps, overlapLengths) {
+	function calculateCollisionMatrices(stems, overlaps, overlapLengths, pbs) {
 		// A : Alignment operator
 		// C : Collision operator
 		// S : Swap operator
@@ -373,9 +395,14 @@ function findStems(glyph, strategy) {
 			for(var k = 0; k < j; k++) {
 				var ovr = overlaps[j][k] * overlapLengths[j][k];
 				var coeffA = 1;
-				if(stems[j].belongRadical === stems[k].belongRadical) {
-					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) coeffA = COEFF_A_FEATURE_LOSS
-					else coeffA = COEFF_A_SAME_RADICAL
+				if(pbs[j][k]){
+					coeffA = COEFF_A_FEATURE_LOSS
+				} else if(stems[j].belongRadical === stems[k].belongRadical) {
+					if(!stems[j].hasSameRadicalStemAbove || !stems[k].hasSameRadicalStemBelow) {
+						coeffA = COEFF_A_SHAPE_LOST
+					} else {
+						coeffA = COEFF_A_SAME_RADICAL
+					}
 				} else {
 					if(atRadicalBottom(stems[j]) && atRadicalTop(stems[k])) coeffA = COEFF_A_RADICAL_MERGE
 				}
@@ -422,7 +449,8 @@ function findStems(glyph, strategy) {
 		return transitions
 	})();
 	analyzeStemSpatialRelationships(stems, overlaps);
-	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps, overlapLengths);
+	var pointBetweenStems = analyzePointBetweenStems(stems);
+	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps, overlapLengths, pointBetweenStems);
 	glyph.stems = stems;
 	return glyph;
 }
