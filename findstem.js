@@ -67,16 +67,17 @@ function findStems(glyph, strategy) {
 		}
 	}
 
-	function overlapRatio(a, b){
+	function overlapRatio(a, b, op){
 		var i = overlapInfo(a, b)
-		return Math.min(i.len / i.la, i.len / i.lb)
+		return op(i.len / i.la, i.len / i.lb)
 	}
 
-	function enoughOverlapBetweenSegments(a, b, ratio){
-		return overlapRatio(a, b) >= ratio
-	}
-	function stemOverlapRatio(a, b){
-		return Math.max(overlapRatio(a.low, b.low), overlapRatio(a.high, b.low), overlapRatio(a.low, b.high), overlapRatio(a.high, b.high))
+	function stemOverlapRatio(a, b, op){
+		return Math.max(
+			overlapRatio(a.low, b.low, op), 
+			overlapRatio(a.high, b.low, op), 
+			overlapRatio(a.low, b.high, op), 
+			overlapRatio(a.high, b.high, op))
 	}
 	function stemOverlapLength(a, b){
 		return Math.max(overlapInfo(a.low, b.low).len, overlapInfo(a.high, b.low).len, overlapInfo(a.low, b.high).len, overlapInfo(a.high, b.high).len) / upm
@@ -264,7 +265,7 @@ function findStems(glyph, strategy) {
 		var res = [];
 		for(var j = 0; j < stems.length; j++) if(stems[j]) {
 			for(var k = 0; k < stems.length; k++) if(stems[k]) {
-				if(Math.abs(stems[j].yori - stems[k].yori) < 2 && stems[j].width === stems[k].width && stems[j].belongRadical !== stems[k].belongRadical) {
+				if(Math.abs(stems[j].yori - stems[j].width / 2 - stems[k].yori + stems[k].width / 2) <= 2 && Math.abs(stems[j].width - stems[k].width) <= 2 && stems[j].belongRadical !== stems[k].belongRadical) {
 					stems[j].high = stems[j].high.concat(stems[k].high);
 					stems[j].low = stems[j].low.concat(stems[k].low);
 					stems[k] = null
@@ -275,7 +276,7 @@ function findStems(glyph, strategy) {
 			res.push(stems[j])
 		};
 		return res;
-	}
+	};
 
 	// Spatial relationship analyzation
 	function analyzePointToStemSpatialRelationships(stem){
@@ -428,26 +429,24 @@ function findStems(glyph, strategy) {
 	findHorizontalSegments(radicals);
 	var stems = pairSegments(radicals);
 	stems = pairSymmetricStems(stems);
-	var overlaps = glyph.stemOverlaps = (function(){
+	
+	var OP_MIN = Math.min;
+	var OP_AVERAGE = function(x, y){ return Math.sqrt(x * y) };
+	
+	function OverlapMatrix(fn){
 		var transitions = [];
 		for(var j = 0; j < stems.length; j++){
 			transitions[j] = []
 			for(var k = 0; k < stems.length; k++){
-				transitions[j][k] = stemOverlapRatio(stems[j], stems[k])
+				transitions[j][k] = fn(stems[j], stems[k])
 			}
 		};
 		return transitions
-	})();
-	var overlapLengths = glyph.stemOverlapLengths = (function(){
-		var transitions = [];
-		for(var j = 0; j < stems.length; j++){
-			transitions[j] = [];
-			for(var k = 0; k < stems.length; k++){
-				transitions[j][k] = stemOverlapLength(stems[j], stems[k])
-			}
-		};
-		return transitions
-	})();
+	}
+	
+	var overlaps = OverlapMatrix(function(p, q){ return stemOverlapRatio(p, q, OP_MIN)});
+	glyph.stemOverlaps = OverlapMatrix(function(p, q){ return stemOverlapRatio(p, q, OP_AVERAGE)});
+	var overlapLengths = glyph.stemOverlapLengths = OverlapMatrix(function(p, q){ return stemOverlapLength(p, q, OP_MIN)})
 	analyzeStemSpatialRelationships(stems, overlaps);
 	var pointBetweenStems = analyzePointBetweenStems(stems);
 	glyph.collisionMatrices = calculateCollisionMatrices(stems, overlaps, overlapLengths, pointBetweenStems);
