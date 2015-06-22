@@ -123,14 +123,15 @@ function findStems(glyph, strategy) {
 			return r;
 		}
 	};
-	function inclusionToRadicals(inclusions, contours, j, orient){
+	function inclusionToRadicals(inclusions, contours, j, orient) {
+		var radicals;
 		if(orient) {
 			// contours[j] is an inner contour
 			// find out radicals inside it
-			var radicals = []
+			radicals = [];
 			for(var k = 0; k < contours.length; k++) if(inclusions[j][k]) {
 				if(contours[k].ccw !== orient) {
-					radicals = radicals.concat(inclusionToRadicals(inclusions, contours, k, !orient))
+					radicals = radicals.concat(inclusionToRadicals(inclusions, contours, k, !orient));
 				}
 			};
 			return radicals
@@ -138,7 +139,7 @@ function findStems(glyph, strategy) {
 			// contours[j] is an outer contour
 			// find out its inner contours and radicals inside it
 			var radical = { parts: [contours[j]], outline: contours[j], subs: [] };
-			var radicals = [radical];
+			radicals = [radical];
 			for(var k = 0; k < contours.length; k++) if(inclusions[j][k]) {
 				if(contours[k].ccw !== orient) {
 					radical.parts.push(contours[k]);
@@ -265,7 +266,7 @@ function findStems(glyph, strategy) {
 		var res = [];
 		for(var j = 0; j < stems.length; j++) if(stems[j]) {
 			for(var k = 0; k < stems.length; k++) if(stems[k]) {
-				if(Math.abs(stems[j].yori - stems[j].width / 2 - stems[k].yori + stems[k].width / 2) <= 2 && Math.abs(stems[j].width - stems[k].width) <= 2 && stems[j].belongRadical !== stems[k].belongRadical) {
+				if(Math.abs(stems[j].yori - stems[j].width / 2 - stems[k].yori + stems[k].width / 2) <= upm * 0.003 && Math.abs(stems[j].width - stems[k].width) <= upm * 0.002 && stems[j].belongRadical !== stems[k].belongRadical) {
 					stems[j].high = stems[j].high.concat(stems[k].high);
 					stems[j].low = stems[j].low.concat(stems[k].low);
 					stems[k] = null
@@ -280,8 +281,8 @@ function findStems(glyph, strategy) {
 
 	// Spatial relationship analyzation
 	function analyzePointToStemSpatialRelationships(stem){
-		var a0 = stem.low[0][0].xori, az = stem.low[stem.low.length - 1][stem.low[stem.low.length - 1].length - 1].xori
-		var b0 = stem.high[0][0].xori, bz = stem.high[stem.high.length - 1][stem.high[stem.high.length - 1].length - 1].xori
+		var a0 = stem.low[0][0].xori, az = stem.low[stem.low.length - 1][stem.low[stem.low.length - 1].length - 1].xori;
+		var b0 = stem.high[0][0].xori, bz = stem.high[stem.high.length - 1][stem.high[stem.high.length - 1].length - 1].xori;
 		var xmin = Math.min(a0, b0, az, bz), xmax = Math.max(a0, b0, az, bz);
 		for(var rad = 0; rad < glyph.radicals.length; rad++){
 			var radical = glyph.radicals[rad];
@@ -433,7 +434,7 @@ function findStems(glyph, strategy) {
 	var OP_MIN = Math.min;
 	var OP_AVERAGE = function(x, y){ return Math.sqrt(x * y) };
 	
-	function OverlapMatrix(fn){
+	function OverlapMatrix(fn) {
 		var transitions = [];
 		for(var j = 0; j < stems.length; j++){
 			transitions[j] = []

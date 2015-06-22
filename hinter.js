@@ -440,7 +440,7 @@ function hint(glyph, ppem, strategy) {
 			properWidths[j] = calculateWidth(stems[j].width)
 		};
 
-		function allocateDown(j){
+		function allocateDown(j) {
 			var sb = spaceBelow(stems, j, pixelBottom - uppx);
 			var wr = properWidths[j];
 			var w = Math.min(wr, round(stems[j].touchwidth + sb - uppx));
@@ -453,11 +453,11 @@ function hint(glyph, ppem, strategy) {
 				allocated[j] = true;
 			}
 		};
-		function allocateUp(j){
+		function allocateUp(j) {
 			var sb = spaceBelow(stems, j, pixelBottom - uppx);
 			var sa = spaceAbove(stems, j, pixelTop + uppx);
 			var wr = properWidths[j];
-			var w = Math.min(wr, round(stems[j].touchwidth + sb + sa - 2 * uppx));
+			var w = Math.min(wr, round(stems[j].touchwidth + sb));
 			if(w < uppx + 1) return;
 			if(sa > 1.75 * uppx && stems[j].ytouch < avaliables[j].high * uppx) {
 				if(sb + stems[j].touchwidth > wr - 1 && stems[j].ytouch - wr >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - wr >= pixelBottom - 1) {
