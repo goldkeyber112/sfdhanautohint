@@ -297,20 +297,36 @@ function findStems(glyph, strategy) {
 						stem.radicalCenterRise = Math.max(stem.radicalCenterRise || 0, point.yori - stem.yori);
 					}
 				}
-				if(point.yori > stem.yori && point.xori >= xmax - blueFuzz) {
+				if(point.yori > stem.yori && point.xori >= xmax - blueFuzz && point.xori <= xmax + blueFuzz) {
 					stem.hasGlyphRightAdjacentPointAbove = true;
 					stem.glyphRightAdjacentRise = Math.max(stem.glyphRightAdjacentRise || 0, point.yori - stem.yori);
 					if(sameRadical){
 						stem.hasRadicalRightAdjacentPointAbove = true;
-						stem.RadicalRightAdjacentRise = Math.max(stem.RadicalRightAdjacentRise || 0, point.yori - stem.yori);
+						stem.radicalRightAdjacentRise = Math.max(stem.radicalRightAdjacentRise || 0, point.yori - stem.yori);
 					}
 				}
-				if(point.yori > stem.yori && point.xori <= xmin + blueFuzz) {
+				if(point.yori > stem.yori && point.xori <= xmin + blueFuzz && point.xori >= xmin - blueFuzz) {
 					stem.hasGlyphLeftAdjacentPointAbove = true;
 					stem.glyphLeftAdjacentRise = Math.max(stem.glyphLeftAdjacentRise || 0, point.yori - stem.yori);
 					if(sameRadical){
 						stem.hasRadicalLeftAdjacentPointAbove = true;
 						stem.radicalLeftAdjacentRise = Math.max(stem.radicalLeftAdjacentRise || 0, point.yori - stem.yori);
+					}
+				}
+				if(point.yori > stem.yori && point.xori >= xmax + blueFuzz) {
+					stem.hasGlyphRightDistancedPointAbove = true;
+					stem.glyphRightDistancedRise = Math.max(stem.glyphRightDistancedRise || 0, point.yori - stem.yori);
+					if(sameRadical){
+						stem.hasRadicalRightDistancedPointAbove = true;
+						stem.radicalRightDistancedRise = Math.max(stem.radicalRightDistancedRise || 0, point.yori - stem.yori);
+					}
+				}
+				if(point.yori > stem.yori && point.xori <= xmin - blueFuzz) {
+					stem.hasGlyphLeftDistancedPointAbove = true;
+					stem.glyphLeftDistancedRise = Math.max(stem.glyphLeftDistancedRise || 0, point.yori - stem.yori);
+					if(sameRadical){
+						stem.hasRadicalLeftDistancedPointAbove = true;
+						stem.radicalLeftDistancedRise = Math.max(stem.radicalLeftDistancedRise || 0, point.yori - stem.yori);
 					}
 				}
 				if(point.yori < stem.yori - stem.width && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {
@@ -321,7 +337,7 @@ function findStems(glyph, strategy) {
 						stem.radicalCenterDescent = Math.max(stem.radicalCenterDescent || 0, stem.yori - stem.width - point.yori);
 					}
 				}
-				if(point.yori < stem.yori - stem.width && point.xori >= xmax - blueFuzz) {
+				if(point.yori < stem.yori - stem.width && point.xori >= xmax - blueFuzz && point.xori <= xmax + blueFuzz) {
 					stem.hasGlyphRightAdjacentPointBelow = true;
 					stem.glyphRightAdjacentDescent = Math.max(stem.glyphRightAdjacentDescent || 0, stem.yori - stem.width - point.yori);
 					if(sameRadical){
@@ -329,12 +345,28 @@ function findStems(glyph, strategy) {
 						stem.radicalRightAdjacentDescent = Math.max(stem.radicalRightAdjacentDescent || 0, stem.yori - stem.width - point.yori);
 					}
 				}
-				if(point.yori < stem.yori - stem.width && point.xori <= xmin + blueFuzz) {
+				if(point.yori < stem.yori - stem.width && point.xori <= xmin + blueFuzz && point.xori >= xmin - blueFuzz) {
 					stem.hasGlyphLeftAdjacentPointBelow = true;
 					stem.glyphLeftAdjacentDescent = Math.max(stem.glyphLeftAdjacentDescent || 0, stem.yori - stem.width - point.yori);
 					if(sameRadical){
 						stem.hasRadicalLeftAdjacentPointBelow = true;
 						stem.radicalLeftAdjacentDescent = Math.max(stem.radicalLeftAdjacentDescent || 0, stem.yori - stem.width - point.yori);
+					}
+				}
+				if(point.yori < stem.yori - stem.width && point.xori >= xmax + blueFuzz) {
+					stem.hasGlyphRightDistancedPointBelow = true;
+					stem.glyphRightDistancedDescent = Math.max(stem.glyphRightDistancedDescent || 0, stem.yori - stem.width - point.yori);
+					if(sameRadical){
+						stem.hasRadicalRightDistancedPointBelow = true;
+						stem.radicalRightDistancedDescent = Math.max(stem.radicalRightDistancedDescent || 0, stem.yori - stem.width - point.yori);
+					}
+				}
+				if(point.yori < stem.yori - stem.width && point.xori <= xmin - blueFuzz) {
+					stem.hasGlyphLeftDistancedPointBelow = true;
+					stem.glyphLeftDistancedDescent = Math.max(stem.glyphLeftDistancedDescent || 0, stem.yori - stem.width - point.yori);
+					if(sameRadical){
+						stem.hasRadicalLeftDistancedPointBelow = true;
+						stem.radicalLeftDistancedDescent = Math.max(stem.radicalLeftDistancedDescent || 0, stem.yori - stem.width - point.yori);
 					}
 				}
 			}
@@ -432,7 +464,7 @@ function findStems(glyph, strategy) {
 	stems = pairSymmetricStems(stems);
 	
 	var OP_MIN = Math.min;
-	var OP_AVERAGE = function(x, y){ return Math.sqrt(x * y) };
+	var OP_MAX = Math.max;
 	
 	function OverlapMatrix(fn) {
 		var transitions = [];
@@ -446,7 +478,7 @@ function findStems(glyph, strategy) {
 	}
 	
 	var overlaps = OverlapMatrix(function(p, q){ return stemOverlapRatio(p, q, OP_MIN)});
-	glyph.stemOverlaps = OverlapMatrix(function(p, q){ return stemOverlapRatio(p, q, OP_AVERAGE)});
+	glyph.stemOverlaps = OverlapMatrix(function(p, q){ return stemOverlapRatio(p, q, OP_MAX)});
 	var overlapLengths = glyph.stemOverlapLengths = OverlapMatrix(function(p, q){ return stemOverlapLength(p, q, OP_MIN)})
 	analyzeStemSpatialRelationships(stems, overlaps);
 	var pointBetweenStems = analyzePointBetweenStems(stems);

@@ -54,6 +54,8 @@ var started = false;
 var curChar = null;
 var readingSpline = false;
 
+var divide = argv.d || 1;
+var modulo = argv.m || 0;
 var n = 0;
 
 outstream.write('[')
@@ -70,13 +72,12 @@ rl.on('line', function(line) {
 		curChar.input += line + '\n';
 	} else if(/^EndChar/.test(line)) {
 		if(curChar) {
-			var hash = md5(curChar.input);
-			buf += (started ? ',\n' : '') + JSON.stringify([hash, extractFeature(findStems(parseSFD(curChar.input), strategy), strategy)]);
-			started = true;
-			n += 1;
-			if(n % 100 === 0 && !argv.silent || argv.verbose){
-				process.stderr.write('EXTRACT-FEATURES: Analyzed ' + n + ' glyphs of ' + (argv._[0] || '(stdin)') + '.\n')
+			if(n % divide === modulo) {
+				var hash = md5(curChar.input);
+				buf += (started ? ',\n' : '') + JSON.stringify([hash, extractFeature(findStems(parseSFD(curChar.input), strategy), strategy)]);
+				started = true;
 			}
+			n += 1;
 		};
 		curChar = null;
 	};
