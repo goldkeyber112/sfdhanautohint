@@ -266,7 +266,7 @@ function findStems(glyph, strategy) {
 		var res = [];
 		for(var j = 0; j < stems.length; j++) if(stems[j]) {
 			for(var k = 0; k < stems.length; k++) if(stems[k]) {
-				if(Math.abs(stems[j].yori - stems[j].width / 2 - stems[k].yori + stems[k].width / 2) <= upm * 0.003 && Math.abs(stems[j].width - stems[k].width) <= upm * 0.002 && stems[j].belongRadical !== stems[k].belongRadical) {
+				if(Math.abs(stems[j].yori - stems[j].width / 2 - stems[k].yori + stems[k].width / 2) <= upm * 0.005 && Math.abs(stems[j].width - stems[k].width) <= upm * 0.003 && stems[j].belongRadical !== stems[k].belongRadical) {
 					stems[j].high = stems[j].high.concat(stems[k].high);
 					stems[j].low = stems[j].low.concat(stems[k].low);
 					stems[k] = null

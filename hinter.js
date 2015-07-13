@@ -16,6 +16,7 @@ function hint(glyph, ppem, strategy) {
 	var EVOLUTION_STAGES 			= strategy.EVOLUTION_STAGES || 15;
 	var MUTANT_PROBABLITY			= strategy.MUTANT_PROBABLITY || 0.4;
 	var ELITE_COUNT      			= strategy.ELITE_COUNT || 10;
+	var PPEM_INCREASE_GLYPH_LIMIT	= strategy.PPEM_INCREASE_GLYPH_LIMIT || 20;
 	
 	
 	var REBALANCE_PASSES         	= strategy.REBALANCE_PASSES || 1;
@@ -73,8 +74,6 @@ function hint(glyph, ppem, strategy) {
 	var uppx = upm / ppem;
 	var pixelBottom = round(BLUEZONE_BOTTOM_CENTER);
 	var pixelTop = round(BLUEZONE_TOP_CENTER);
-	var pixelLimitBottom = round(BLUEZONE_BOTTOM_LIMIT);
-	var pixelLimitTop = round(BLUEZONE_TOP_LIMIT);
 	var glyfBottom = pixelBottom;
 	var glyfTop = pixelTop;
 	
@@ -200,11 +199,12 @@ function hint(glyph, ppem, strategy) {
 			// Enlarge glyph
 			if(atGlyphTop(stems[j])
 				&& !stems[j].hasRadicalLeftDistancedPointAbove
-				&& !stems[j].hasRadicalRightDistancedPointAbove) {
-				center = roundUp(stems[j].yori) - stems[j].width / 2 + w / 2;
+				&& !stems[j].hasRadicalRightDistancedPointAbove
+				&& ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
+				center += pixelTop - BLUEZONE_TOP_LIMIT;
 			};
-			if(atGlyphBottom(stems[j])) {
-				center = roundDown(stems[j].yori) - stems[j].width / 2 + w / 2;
+			if(atGlyphBottom(stems[j]) && ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
+				center += pixelBottom - BLUEZONE_BOTTOM_LIMIT;
 				if(center <= pixelBottom + w + 2 * uppx) {
 					center -= uppx;
 				}

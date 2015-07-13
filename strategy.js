@@ -1,4 +1,4 @@
-var defaultStrategy = function(){
+var DefaultStrategy = function(){
 	var g = [[0,1,1],[23,2,2],[36,3,2]]
 	return {
 		UPM: 1000,
@@ -9,6 +9,7 @@ var defaultStrategy = function(){
 		STEM_SIDE_MIN_DESCENT: 60,
 		PPEM_MIN: 10,
 		PPEM_MAX: 36,
+		PPEM_INCREASE_GLYPH_LIMIT: 20,
 		POPULATION_LIMIT: 500,
 		CHILDREN_LIMIT: 500,
 		EVOLUTION_STAGES: 20,
@@ -20,9 +21,9 @@ var defaultStrategy = function(){
 		ABLATION_GLYPH_HARD_EDGE: 50,
 		COEFF_PORPORTION_DISTORTION: 4,
 		BLUEZONE_BOTTOM_CENTER: -67,
-		BLUEZONE_TOP_CENTER: 836,
+		BLUEZONE_TOP_CENTER: 831,
 		BLUEZONE_BOTTOM_LIMIT: -55,
-		BLUEZONE_TOP_LIMIT: 810,
+		BLUEZONE_TOP_LIMIT: 793,
 		BLUEZONE_WIDTH: 15,
 		COEFF_A_MULTIPLIER: 10,
 		COEFF_A_SAME_RADICAL: 4,
@@ -40,9 +41,9 @@ var defaultStrategy = function(){
 		gears: JSON.stringify(g)
 	}
 };
-exports.defaultStrategy = defaultStrategy();
+exports.defaultStrategy = DefaultStrategy();
 exports.from = function(argv){
-	var strategy = defaultStrategy();
+	var strategy = DefaultStrategy();
 	for(var prop in strategy) {
 		if(argv[prop]) {
 			strategy[prop] = isFinite(argv[prop] - 0) ? argv[prop] : strategy[prop]
