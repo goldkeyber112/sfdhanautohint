@@ -199,9 +199,12 @@ function hint(glyph, ppem, strategy) {
 			// Enlarge glyph
 			if(atGlyphTop(stems[j])
 				&& !stems[j].hasRadicalLeftDistancedPointAbove
-				&& !stems[j].hasRadicalRightDistancedPointAbove
-				&& ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-				center += pixelTop - BLUEZONE_TOP_LIMIT;
+				&& !stems[j].hasRadicalRightDistancedPointAbove) {
+					if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
+						center += pixelTop - BLUEZONE_TOP_LIMIT;
+					} else {
+						center += pixelTop - BLUEZONE_TOP_CENTER;
+					}
 			};
 			if(atGlyphBottom(stems[j]) && ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
 				center += pixelBottom - BLUEZONE_BOTTOM_LIMIT;

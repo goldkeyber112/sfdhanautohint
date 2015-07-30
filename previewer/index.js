@@ -59,6 +59,7 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 	var rtg = roundings.Rtg(strategy.UPM, ppem);
 	for(var j = 0; j < glyphs.length; j++){
 		var glyph = glyphs[j].glyph, features = glyphs[j].features;
+		console.log(features);
 		untouchAll(glyph.contours);
 		var actions = hint(features, ppem, strategy);
 
@@ -90,6 +91,13 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 				pt.touched = true;
 				pt.ytouch = glyph.indexedPoints[stem.advKey.id].ytouch
 			})
+		});
+		// IPs
+		features.shortAbsorptions.forEach(function(group){
+			var a = glyph.indexedPoints[group[0]]
+			var b = glyph.indexedPoints[group[1]]
+			b.touched = true;
+			b.ytouch = b.yori + a.ytouch - a.yori;
 		});
 		// IPs
 		features.interpolations.forEach(function(group){

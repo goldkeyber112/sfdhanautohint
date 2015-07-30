@@ -102,13 +102,21 @@ exports.extractFeature = function(glyph, strategy) {
 
 	// Interpolations
 	var interpolations = [];
+	var shortAbsorptions = [];
 	function BY_YORI(p, q){ return p.yori - q.yori }
 
-	function interpolateByKeys(pts, keys){
+	function interpolateByKeys(pts, keys, inSameRadical){
 		for(var k = 0; k < pts.length; k++) if(!pts[k].touched) {
 			for(var m = 1; m < keys.length; m++) {
+				if(strategy.DO_SHORT_ABSORPTION && inSameRadical && pts[k].yori - keys[m - 1].yori <= strategy.MAX_STEM_WIDTH
+					&& Math.abs(pts[k].xori - keys[m - 1].xori) <= strategy.MAX_STEM_WIDTH) {
+					shortAbsorptions.push([keys[m - 1].id, pts[k].id]);
+					pts[k].touched = true;
+					break;
+				}
 				if(keys[m].yori > pts[k].yori && keys[m - 1].yori <= pts[k].yori) {
 					interpolations.push([keys[m - 1].id, keys[m].id, pts[k].id]);
+					pts[k].touched = true;
 					break;
 				}
 			}
@@ -125,32 +133,22 @@ exports.extractFeature = function(glyph, strategy) {
 
 		for(var j = 0; j < contours.length; j++) {
 			var contourpoints = contours[j].points
-			var contourKeypoints = contourpoints.filter(function(p){ return p.touched});
-			if(contourKeypoints.length >= 2) {
-				var k0 = contourpoints.indexOf(contourKeypoints[0]);
-				var keyk = 0;
-				for(var k_ = k0; k_ < contourpoints.length + k0; k_++){
-					var k = k_ % contourpoints.length;
-					if(contourpoints[k] === contourKeypoints[keyk + 1]) {
-						keyk += 1;
-					} else if(contourpoints[k].yori >= contourKeypoints[keyk].yori && contourpoints[k].yori <= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori || contourpoints[k].yori <= contourKeypoints[keyk].yori && contourpoints[k].yori >= contourKeypoints[(keyk + 1) % contourKeypoints.length].yori) {
-						contourpoints[k].donttouch = true;
-					}
-				}
-			}
-
+			var contourKeypoints = contourpoints.filter(function(p){ return p.touched });
 			var contourExtrema = [];
 			for(var k = 0; k < contours[j].points.length; k++) {
 				var point = contours[j].points[k]
-				if(point.yExtrema && !point.touched && !point.donttouch) {
+				if((point.xExtrema || point.yExtrema) && !point.touched && !point.donttouch) {
 					contourExtrema.push(point);
 				}
 			};
-			if(contourKeypoints.length > 1) { interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI)) }
-			interpolateByKeys(contourExtrema, glyphKeypoints)
+			if(contourKeypoints.length > 1) { 
+				interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI), true)
+			}
+			interpolateByKeys(contourExtrema, glyphKeypoints, false)
 		}
 	};
 	findInterpolates(glyph.contours);
+
 	var directOverlaps = (function(){
 		var d = [];
 		for(var j = 0; j < glyph.stemOverlaps.length; j++){
@@ -233,6 +231,7 @@ exports.extractFeature = function(glyph, strategy) {
 		collisionMatrices: glyph.collisionMatrices,
 		topBluePoints: topBluePoints.map(function(x){ return x.id }),
 		bottomBluePoints: bottomBluePoints.map(function(x){ return x.id }),
-		interpolations: interpolations
+		interpolations: interpolations,
+		shortAbsorptions: shortAbsorptions
 	}
 }

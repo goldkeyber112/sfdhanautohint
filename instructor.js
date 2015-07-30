@@ -1,10 +1,10 @@
-var util = require('util')
+var util = require('util');
 
 function rtg(y, upm, ppem){ return Math.round(y / upm * ppem) / ppem * upm }
 function pushargs(tt){
 	var vals = [];
 	for(var j = 1; j < arguments.length; j++) vals = vals.concat(arguments[j]);
-
+	if(!vals.length) return;
 	var datatype = 'B';
 	var shortpush = vals.length <= 8;
 	for(var j = 0; j < vals.length; j++) if(vals[j] < 0 || vals[j] > 255) datatype = 'W';
@@ -17,29 +17,32 @@ function pushargs(tt){
 		for(var j = 0; j < vals.length; j++) tt.push(vals[j])
 	}
 };
-
-function initialMDRPs(stems, useMDRPnr){
-	var tt = [];
-	var args = [];
-	var movements = [];
-	for(var k = 0; k < stems.length; k++){
-		args.push(stems[k].advKey.id, stems[k].posKey.id);
-		movements.push('MDAP[rnd]', 'MDAP[rnd]');
+function invokesToInstrs(invocations, limit){
+	var stackSofar = [];
+	var actionsSofar = [];
+	var instrs = [];
+	for(var j = 0; j < invocations.length; j++) {
+		var arg = invocations[j][0];
+		var action = invocations[j][1];
+		if(stackSofar.length + arg.length > limit){
+			pushargs(instrs, stackSofar);
+			instrs = instrs.concat(actionsSofar);
+			stackSofar = [];
+			actionsSofar = [];
+		}
+		stackSofar = arg.concat(stackSofar);
+		actionsSofar = actionsSofar.concat(action);
 	};
-	if(args.length) {
-		pushargs(tt, args);
-		return tt.concat(movements.reverse());
-	} else {
-		return []
-	}
-};
-function by_rp(a, b){
-	return a[1] - b[1] || a[2] - b[2]
+	pushargs(instrs, stackSofar);
+	instrs = instrs.concat(actionsSofar);
+	return instrs;
 }
-function ipInstrs(actions){
-	var tt = [];
-	var args = [];
-	var movements = [];
+
+function by_rp(a, b){
+	return a[0] - b[0] || a[1] - b[1]
+}
+function ipInvokes(actions){
+	var invokes = [];
 	actions = actions.sort(by_rp);
 	var cur_rp1 = -1;
 	var cur_rp2 = -1;
@@ -48,23 +51,32 @@ function ipInstrs(actions){
 		var rp2 = actions[k][1];
 		if(cur_rp1 !== rp1) {
 			cur_rp1 = rp1;
-			args.push(rp1);
-			movements.push('SRP1')
+			invokes.push([[rp1], ['SRP1']])
 		};
 		if(cur_rp2 !== rp2) {
 			cur_rp2 = rp2;
-			args.push(rp2);
-			movements.push('SRP2')
+			invokes.push([[rp2], ['SRP2']])
 		};
-		args.push(actions[k][2]);
-		movements.push('IP')
+		invokes.push([[actions[k][2]], ['IP']])
 	};
-	if(args.length) {
-		pushargs(tt, args.reverse())
-		return tt.concat(movements);
-	} else {
-		return []
-	}
+	return invokes;
+}
+function by_rp_alt(a, b){
+	return a[0] - b[0] || a[1] - b[1]
+}
+function shortMdrpInvokes(actions){
+	var invokes = [];
+	actions = actions.sort(by_rp);
+	var cur_rp0 = 0;
+	for(var k = 0; k < actions.length; k++) {
+		var rp0 = actions[k][0];
+		if(cur_rp0 !== rp0) {
+			cur_rp0 = rp0;
+			invokes.push([[rp0], ['SRP0']])
+		};
+		invokes.push([[actions[k][1]], ['MDRP[0]']])
+	};
+	return invokes;
 }
 
 function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
@@ -87,41 +99,36 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 		if(d < -8 || d > 8) return -2;
 		var selector = (d > 0 ? d + 7 : d + 8);
 		var deltappem = (ppem - strategy.PPEM_MIN) % 16;
-		return deltappem * 16 + selector
+		return deltappem * 16 + selector;
 	}
+
+	var STACK_DEPTH = strategy.STACK_DEPTH || 200;
+	var invocations = [];
+
 	// if(!glyph.stems.length) return;
 	var tt = ['SVTCA[y-axis]', 'RTG'];
 	tt.push('PUSHB_1', strategy.PPEM_MIN, 'MPPEM', 'LTEQ', 'PUSHB_1', strategy.PPEM_MAX, 'MPPEM', 'GT', 'AND', 'IF');
 
 	// Blue zone alignment instructions
-	for(var k = 0; k < glyph.topBluePoints.length; k++){
-		pushargs(tt, [glyph.topBluePoints[k], cvtTopID]);
-		tt.push('MIAP[rnd]');
+	for(var k = 0; k < glyph.topBluePoints.length; k++) {
+		invocations.push([[glyph.topBluePoints[k], cvtTopID], ['MIAP[rnd]']])
 	};
-	for(var k = 0; k < glyph.bottomBluePoints.length; k++){
-		pushargs(tt, [glyph.bottomBluePoints[k], cvtBottomID]);
-		tt.push('MIAP[rnd]');
+	for(var k = 0; k < glyph.bottomBluePoints.length; k++) {
+		invocations.push([[glyph.bottomBluePoints[k], cvtBottomID], ['MIAP[rnd]']])
 	};
 
 	// Microsoft eats my deltas, i have to add additional MDAPs
 	// cf. http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx#Toc227035721
 	if(glyph.stems.length) {
-		var initialTouchArgs = [];
-		var initialTouches = [];
-		for(var k = 0; k < glyph.stems.length; k++){
-			initialTouchArgs.push(glyph.stems[k].posKey.id);
-			initialTouchArgs.push(glyph.stems[k].advKey.id);
-			initialTouches.push('MDAP[0]');
-			initialTouches.push('MDAP[0]');
+		for(var k = 0; k < glyph.stems.length; k++) {
+			invocations.push([[glyph.stems[k].posKey.id], ['MDAP[0]']]);
+			invocations.push([[glyph.stems[k].advKey.id], ['MDAP[0]']]);
 		};
-		pushargs(tt, initialTouchArgs);
-		tt = tt.concat(initialTouches);
 	};
 
 
 	var deltaInstructions = [];
-	pushargs(deltaInstructions, [1, strategy.PPEM_MIN]);
-	deltaInstructions.push('SDB', 'SDS');
+	invocations.push([[1, strategy.PPEM_MIN], ['SDB', 'SDS']]);
 
 	var mirps = [];
 	if(glyph.stems.length) {
@@ -171,9 +178,8 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 					for(var j = 0; j < deltas.length; j++){
 						deltapArgs.push(deltas[j].delta, deltas[j].id)
 					};
-					deltapArgs.push(deltapArgs.length >> 1)
-					pushargs(deltaInstructions, deltapArgs);
-					deltaInstructions.push('DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16)))
+					deltapArgs.push(deltapArgs.length >> 1);
+					invocations.push([deltapArgs, ['DELTAP' + (1 + Math.floor((ppem - strategy.PPEM_MIN) / 16))]])
 				};
 				var ppemSpecificMRPs = [];
 				if(args.length) {
@@ -188,23 +194,35 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 			}
 		};
 	};
-
-	// Interpolations
-	tt = tt.concat(deltaInstructions, initialMDRPs(glyph.stems, useMDRPnr), mirps, ipInstrs(glyph.interpolations));
-
+	
+	if(glyph.stems.length) {
+		for(var k = 0; k < glyph.stems.length; k++) {
+			invocations.push([[glyph.stems[k].posKey.id], ['MDAP[rnd]']]);
+			invocations.push([[glyph.stems[k].advKey.id], ['MDAP[rnd]']]);
+		};
+	};
+	
+	var isalInvocations = [];
 	// In-stem alignments
 	for(var j = 0; j < glyph.stems.length; j++) {
 		[[glyph.stems[j].posKey.id, glyph.stems[j].posAlign], [glyph.stems[j].advKey.id, glyph.stems[j].advAlign]].forEach(function(x){
 			if(x[1].length) {
-				pushargs(tt, x[1], [x[0]]);
-				tt.push('SRP0');
-				tt = tt.concat(x[1].map(function(x){ return 'MDRP[0]'}))
+				isalInvocations.push([x[1].concat([x[0]]), ['SRP0'].concat(x[1].map(function(x){ return 'MDRP[0]'}))]);
 			}
 		});
 	};
+
+	// Interpolations
+	tt = tt.concat(
+		invokesToInstrs(invocations, STACK_DEPTH),
+		mirps,
+		invokesToInstrs(ipInvokes(glyph.interpolations).concat(
+			shortMdrpInvokes(glyph.shortAbsorptions),
+			isalInvocations
+		), STACK_DEPTH));
 
 	tt.push('EIF', 'IUP[y]');
 	return tt.join("\n")
 };
 
-exports.instruct = instruct
+exports.instruct = instruct;

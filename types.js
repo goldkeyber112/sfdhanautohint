@@ -15,13 +15,25 @@ function Contour(){
 }
 Contour.prototype.stat = function() {
 	var points = this.points;
-	if(points[0].yori > points[points.length - 2].yori && points[0].yori >= points[1].yori ||points[0].yori < points[points.length - 2].yori && points[0].yori <= points[1].yori) {
+	if(
+		points[0].yori > points[points.length - 2].yori && points[0].yori >= points[1].yori 
+		|| points[0].yori < points[points.length - 2].yori && points[0].yori <= points[1].yori) {
 		points[0].yExtrema = true;
 	}
 	for(var j = 0; j < points.length - 1; j++){
 		if(j > 0 && 
 			(  points[j].yori > points[j - 1].yori && points[j].yori >= points[j + 1].yori 
 			|| points[j].yori < points[j - 1].yori && points[j].yori <= points[j + 1].yori)) points[j].yExtrema = true;
+	};
+	if(
+		points[0].xori > points[points.length - 2].xori && points[0].xori >= points[1].xori 
+		|| points[0].xori < points[points.length - 2].xori && points[0].xori <= points[1].xori) {
+		points[0].xExtrema = true;
+	}
+	for(var j = 0; j < points.length - 1; j++){
+		if(j > 0 && 
+			(  points[j].xori > points[j - 1].xori && points[j].xori >= points[j + 1].xori 
+			|| points[j].xori < points[j - 1].xori && points[j].xori <= points[j + 1].xori)) points[j].xExtrema = true;
 	};
 	var xoris = this.points.map(function(p){ return p.xori });
 	var yoris = this.points.map(function(p){ return p.yori });
