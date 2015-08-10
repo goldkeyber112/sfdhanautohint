@@ -1,8 +1,3 @@
-var MIN_OVERLAP_RATIO = 0.3;
-var MIN_STEM_OVERLAP_RATIO = 0.2;
-var Y_FUZZ = 7
-var SLOPE_FUZZ = 0.04
-
 function findStems(glyph, strategy) {
 	
 
@@ -24,6 +19,10 @@ function findStems(glyph, strategy) {
 	var COEFF_C_MULTIPLIER = strategy.COEFF_C_MULTIPLIER || 25;
 	var COEFF_C_SAME_RADICAL = strategy.COEFF_C_SAME_RADICAL || 3;
 	var COEFF_S = strategy.COEFF_S || 500;
+	var MIN_OVERLAP_RATIO = strategy.MIN_OVERLAP_RATIO || 0.3;
+	var MIN_STEM_OVERLAP_RATIO = strategy.MIN_STEM_OVERLAP_RATIO || 0.2;
+	var Y_FUZZ = strategy.Y_FUZZ || 7
+	var SLOPE_FUZZ = strategy.SLOPE_FUZZ || 0.07
 
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
