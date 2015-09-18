@@ -474,7 +474,10 @@ function hint(glyph, ppem, strategy) {
 			};
 		}
 	};
-
+	function edgetouch(s, t) {
+		return (s.xmin < t.xmin && t.xmin < s.xmax && s.xmax < t.xmax && (s.xmax - t.xmin) / (s.xmax - s.xmin) <= 0.2)
+			|| (t.xmin < s.xmin && s.xmin < t.xmax && t.xmax < s.xmax && (t.xmax - s.xmin) / (s.xmax - s.xmin) <= 0.2)
+	}
 	// Pass 4 : Width allocation
 	function allocateWidth(stems) {
 		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
@@ -520,10 +523,42 @@ function hint(glyph, ppem, strategy) {
 		// Allowcate top and bottom stems
 		for(var j = 0; j < stems.length; j++) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateDown(j) };
 		for(var j = stems.length - 1; j >= 0; j--) if((atGlyphTop(stems[j]) || atGlyphBottom(stems[j])) && !allocated[j]){ allocateUp(j) };
-		
+		// Allocate center stems
 		for(var pass = 0; pass < WIDTH_ALLOCATION_PASSES; pass++) {
 			for(var j = 0; j < stems.length; j++) if(!allocated[j]) { allocateDown(j) };
 			for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]) { allocateUp(j) };
+		}
+		// Avoid thin strokes
+		if(WIDTH_GEAR_PROPER > 2) {
+			for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
+				var able = true;
+				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= uppx) able = false;
+				if(able){
+					stems[j].touchwidth += uppx;
+					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx) {
+						stems[k].ytouch -= uppx;
+						stems[k].touchwidth -= uppx;
+					}
+				}
+			}
+			for(var j = stems.length - 1; j >= 0; j--) if(stems[j].touchwidth <= uppx * 1.01){
+				var able = true;
+				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= 2 * uppx) able = false;
+				if(able){
+					stems[j].touchwidth += uppx;
+					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx) {
+						stems[k].ytouch -= uppx;
+						stems[k].touchwidth -= uppx;
+					}
+				}
+			}
+			for(var j = 0; j < stems.length; j++) if(stems[j].touchwidth === uppx && stems[j].ytouch > pixelBottom + uppx * 2) {
+				var able = true;
+				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && !edgetouch(stems[j], stems[k])) able = false;
+				if(able) {
+					stems[j].touchwidth = uppx * 2
+				}
+			}
 		}
 	};
 	var instructions = []

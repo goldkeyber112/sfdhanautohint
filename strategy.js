@@ -38,6 +38,8 @@ var DefaultStrategy = function(){
 		COLLISION_MIN_OVERLAP_RATIO: 0.2,
 		DO_SHORT_ABSORPTION: false,
 		DONT_ADJUST_STEM_WIDTH: false,
+		SLOPE_FUZZ: 0.04,
+		Y_FUZZ: 7,
 		STACK_DEPTH: 200,
 		PPEM_STEM_WIDTH_GEARS: g,
 		gears: JSON.stringify(g)

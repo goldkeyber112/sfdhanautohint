@@ -22,7 +22,7 @@ function findStems(glyph, strategy) {
 	var MIN_OVERLAP_RATIO = strategy.MIN_OVERLAP_RATIO || 0.3;
 	var MIN_STEM_OVERLAP_RATIO = strategy.MIN_STEM_OVERLAP_RATIO || 0.2;
 	var Y_FUZZ = strategy.Y_FUZZ || 7
-	var SLOPE_FUZZ = strategy.SLOPE_FUZZ || 0.07
+	var SLOPE_FUZZ = strategy.SLOPE_FUZZ || 0.04
 
 	var COLLISION_MIN_OVERLAP_RATIO = strategy.COLLISION_MIN_OVERLAP_RATIO || 0.2;
 
@@ -60,8 +60,8 @@ function findStems(glyph, strategy) {
 			if(!bc && bb) lb += e.at - sb;
 		};
 		return {
-			len: len, 
-			la: la, 
+			len: len,
+			la: la,
 			lb: lb
 		}
 	}
