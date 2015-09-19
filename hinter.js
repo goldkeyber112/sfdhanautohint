@@ -169,9 +169,6 @@ function hint(glyph, ppem, strategy) {
 			}
 		}
 		for(var j = 0; j < avaliables.length; j++) {
-			if(bot[j] && top[j] && bot[j].originalCenter !== top[j].originalCenter) {
-				avaliables[j].center = avaliables[j].properWidth / 2 + bot[j].center - bot[j].properWidth / 2 + (top[j].center - top[j].properWidth / 2 - bot[j].center + bot[j].properWidth / 2) * ((avaliables[j].originalCenter - bot[j].originalCenter) / (top[j].originalCenter - bot[j].originalCenter))
-			};
 			avaliables[j].center = xclamp(avaliables[j].low * uppx, 
 				avaliables[j].center, 
 				avaliables[j].high * uppx);
@@ -192,7 +189,7 @@ function hint(glyph, ppem, strategy) {
 			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
 			
 			var high = round(stems[j].yori) + uppx;
-			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - xclamp(1, Math.ceil((strategy.BLUEZONE_TOP_CENTER - stems[j].yori) / uppx), WIDTH_GEAR_MIN) * uppx);
+			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
 			
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
 			
