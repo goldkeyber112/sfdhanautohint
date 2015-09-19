@@ -555,7 +555,7 @@ function hint(glyph, ppem, strategy) {
 					if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx * 1.01 && stems[k].touchwidth <= 2 * uppx) able = false;
 				}
 				if(able){
-					for(var k = j + 1; k < stems.length; k++) if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx) {
+					for(var k = j + 1; k < stems.length; k++) if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx * 1.01) {
 						stems[k].touchwidth -= uppx;
 					}
 					stems[j].touchwidth += uppx;
