@@ -562,6 +562,15 @@ function hint(glyph, ppem, strategy) {
 					stems[j].ytouch += uppx
 				}
 			}
+			// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
+			for(var t = 0; t < triplets.length; t++){
+				var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2];
+				if(stems[w].touchwidth < uppx * WIDTH_GEAR_PROPER && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch >= 1.99 * uppx && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 2.01 * uppx && stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 1.01 * uppx && stems[k].ytouch < avaliables[k].high * uppx && stems[w].ytouch < avaliables[k].high * uppx){
+					stems[k].ytouch += uppx;
+					stems[w].ytouch += uppx;
+					stems[w].touchwidth += uppx;
+				}
+			}
 			for(var j = 0; j < stems.length; j++) if(stems[j].touchwidth === uppx && stems[j].ytouch > pixelBottom + uppx * 2) {
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && !edgetouch(stems[j], stems[k])) able = false;
