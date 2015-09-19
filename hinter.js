@@ -1,6 +1,10 @@
 var util = require('util');
 var roundings = require('./roundings');
 
+function proportion(p, q){ return p / (p + q) }
+function clamp(x){ return Math.min(1, Math.max(0, x)) }
+function xclamp(low, x, high){ return x < low ? low : x > high ? high : x }
+
 function hint(glyph, ppem, strategy) {
 	var upm							= strategy.UPM || 1000;
 
@@ -88,8 +92,6 @@ function hint(glyph, ppem, strategy) {
 		stem.deltaY = 0
 	}
 
-	function clamp(x){ return Math.min(1, Math.max(0, x)) }
-	function xclamp(low, x, high){ return x < low ? low : x > high ? high : x }
 	function calculateWidth(w){
 		return Math.round(Math.max(WIDTH_GEAR_MIN, Math.min(WIDTH_GEAR_PROPER, w / MOST_COMMON_STEM_WIDTH * WIDTH_GEAR_PROPER))) * uppx
 	}
@@ -133,6 +135,15 @@ function hint(glyph, ppem, strategy) {
 		return o;
 	})(directOverlaps);
 	
+	function flexCenterStem(t, m, b){
+		var spaceAboveOri = t.originalCenter - t.properWidth - m.originalCenter
+		var spaceBelowOri = m.originalCenter - m.properWidth - b.originalCenter
+		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth
+		m.center = xclamp(m.low * uppx,
+			m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
+			m.high * uppx)
+	}
+	
 	function flexCenter(avaliables) {
 		var bot = [];
 		var top = [];
@@ -169,9 +180,9 @@ function hint(glyph, ppem, strategy) {
 			}
 		}
 		for(var j = 0; j < avaliables.length; j++) {
-			avaliables[j].center = xclamp(avaliables[j].low * uppx, 
-				avaliables[j].center, 
-				avaliables[j].high * uppx);
+			if(top[j] && bot[j] && top[j] !== bot[j]){
+				flexCenterStem(top[j], avaliables[j], bot[j])
+			}
 			if(!stems[j].hasGlyphStemBelow) {
 				avaliables[j].high = Math.round(Math.max(avaliables[j].center, pixelBottom + avaliables[j].properWidth + (atGlyphBottom(stems[j]) ? 0 : uppx)) / uppx);
 			};
