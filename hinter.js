@@ -136,9 +136,9 @@ function hint(glyph, ppem, strategy) {
 	})(directOverlaps);
 	
 	function flexCenterStem(t, m, b){
-		var spaceAboveOri = t.originalCenter - t.properWidth - m.originalCenter
-		var spaceBelowOri = m.originalCenter - m.properWidth - b.originalCenter
-		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth
+		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4);
+		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4);
+		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
 		m.center = xclamp(m.low * uppx,
 			m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
 			m.high * uppx)
@@ -230,6 +230,8 @@ function hint(glyph, ppem, strategy) {
 				high: Math.round(high / uppx),
 				properWidth: w,
 				originalCenter: stems[j].yori - stems[j].width / 2,
+				y0: stems[j].yori,
+				w0: stems[j].width,
 				center: center,
 				ablationCoeff: ablationCoeff / uppx * (1 + 0.5 * (stems[j].xmax - stems[j].xmin) / upm),
 				proportion: (stems[j].yori - stems[0].yori) / (stems[stems.length - 1].yori - stems[0].yori) || 0
