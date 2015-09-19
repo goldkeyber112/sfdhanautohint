@@ -409,7 +409,6 @@ function findStems(glyph, strategy) {
 			}
 		}
 	};
-
 	// Collision matrices, used to calculate collision potential
 	function calculateCollisionMatrices(stems, overlaps, overlapLengths, pbs) {
 		// A : Alignment operator
@@ -449,7 +448,7 @@ function findStems(glyph, strategy) {
 			};
 		};
 		return {
-			alignment: A, 
+			alignment: A,
 			collision: C,
 			swap: S
 		}

@@ -192,7 +192,7 @@ function hint(glyph, ppem, strategy) {
 			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
 			
 			var high = round(stems[j].yori) + uppx;
-			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
+			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - xclamp(1, Math.ceil((strategy.BLUEZONE_TOP_CENTER - stems[j].yori) / uppx), WIDTH_GEAR_MIN) * uppx);
 			
 			var center = stems[j].yori - stems[j].width / 2 + w / 2;
 			
@@ -550,6 +550,19 @@ function hint(glyph, ppem, strategy) {
 						stems[k].ytouch -= uppx;
 						stems[k].touchwidth -= uppx;
 					}
+				}
+			}
+			for(var j = 0; j < stems.length; j++) if(stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
+				var able = true;
+				for(var k = j + 1; k < stems.length; k++) {
+					if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx * 1.01 && stems[k].touchwidth <= 2 * uppx) able = false;
+				}
+				if(able){
+					for(var k = j + 1; k < stems.length; k++) if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx) {
+						stems[k].touchwidth -= uppx;
+					}
+					stems[j].touchwidth += uppx;
+					stems[j].ytouch += uppx
 				}
 			}
 			for(var j = 0; j < stems.length; j++) if(stems[j].touchwidth === uppx && stems[j].ytouch > pixelBottom + uppx * 2) {
