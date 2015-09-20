@@ -136,8 +136,8 @@ function hint(glyph, ppem, strategy) {
 	})(directOverlaps);
 	
 	function flexCenterStem(t, m, b){
-		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4);
-		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4);
+		var spaceAboveOri = round((t.y0 - t.w0 - m.y0) * 4);
+		var spaceBelowOri = round((m.y0 - m.w0 - b.y0) * 4);
 		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
 		m.center = xclamp(m.low * uppx,
 			m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
@@ -214,8 +214,12 @@ function hint(glyph, ppem, strategy) {
 						center += pixelTop - BLUEZONE_TOP_CENTER;
 					}
 			};
-			if(atGlyphBottom(stems[j]) && ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-				center += pixelBottom - BLUEZONE_BOTTOM_LIMIT;
+			if(atGlyphBottom(stems[j])) {
+				if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
+					center += pixelBottom - BLUEZONE_BOTTOM_LIMIT;
+				} else {
+					center += pixelBottom - BLUEZONE_BOTTOM_CENTER;
+				}
 				if(center <= pixelBottom + w + 2 * uppx) {
 					center -= uppx;
 				}
@@ -539,7 +543,7 @@ function hint(glyph, ppem, strategy) {
 			for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]) { allocateUp(j) };
 		}
 		// Avoid thin strokes
-		if(WIDTH_GEAR_PROPER > 2) {
+		if(WIDTH_GEAR_PROPER >= 2) {
 			for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= uppx) able = false;
@@ -574,11 +578,15 @@ function hint(glyph, ppem, strategy) {
 					stems[j].touchwidth += uppx;
 					stems[j].ytouch += uppx
 				}
-			}
+			};
+			if(ppem === 26) console.log(stems);
 			// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
 			for(var t = 0; t < triplets.length; t++){
 				var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2];
-				if(stems[w].touchwidth < uppx * WIDTH_GEAR_PROPER && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch >= 1.99 * uppx && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 2.01 * uppx && stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 1.01 * uppx && stems[k].ytouch < avaliables[k].high * uppx && stems[w].ytouch < avaliables[k].high * uppx){
+				if(stems[w].touchwidth < uppx * WIDTH_GEAR_PROPER 
+					&& stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch >= 1.99 * uppx && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 2.01 * uppx 
+					&& stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 1.01 * uppx 
+					&& stems[k].ytouch < avaliables[k].high * uppx && stems[w].ytouch < avaliables[k].high * uppx){
 					stems[k].ytouch += uppx;
 					stems[w].ytouch += uppx;
 					stems[w].touchwidth += uppx;

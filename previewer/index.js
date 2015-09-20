@@ -59,7 +59,6 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 	var rtg = roundings.Rtg(strategy.UPM, ppem);
 	for(var j = 0; j < glyphs.length; j++){
 		var glyph = glyphs[j].glyph, features = glyphs[j].features;
-		console.log(features);
 		untouchAll(glyph.contours);
 		var actions = hint(features, ppem, strategy);
 
