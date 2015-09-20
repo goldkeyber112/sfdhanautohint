@@ -14,7 +14,6 @@ function interpolate(a, b, c){
 	if(c.yori <= a.yori) c.ytouch = c.yori - a.yori + a.ytouch;
 	else if(c.yori >= b.yori) c.ytouch = c.yori - b.yori + b.ytouch;
 	else c.ytouch = (c.yori - a.yori) / (b.yori - a.yori) * (b.ytouch - a.ytouch) + a.ytouch;
-	if(c.yori === 500) debugger;
 }
 function interpolateIP(a, b, c){
 	c.touched = true;

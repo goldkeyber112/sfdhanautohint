@@ -136,12 +136,14 @@ function hint(glyph, ppem, strategy) {
 	})(directOverlaps);
 	
 	function flexCenterStem(t, m, b){
-		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4)
-		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4)
-		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
-		m.center = xclamp(m.low * uppx,
-			m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
-			m.high * uppx)
+		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4);
+		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4);
+		if(spaceAboveOri > 0 && spaceBelowOri > 0) {
+			var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
+			m.center = xclamp(m.low * uppx,
+				m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
+				m.high * uppx)
+		}
 	}
 	
 	function flexCenter(avaliables) {

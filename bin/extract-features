@@ -74,7 +74,9 @@ rl.on('line', function(line) {
 		if(curChar) {
 			if(n % divide === modulo) {
 				var hash = md5(curChar.input);
-				buf += (started ? ',\n' : '') + JSON.stringify([hash, extractFeature(findStems(parseSFD(curChar.input), strategy), strategy)]);
+				var glyphdata = extractFeature(findStems(parseSFD(curChar.input), strategy), strategy);
+				glyphdata.id = curChar.id;
+				buf += (started ? ',\n' : '') + JSON.stringify([hash, glyphdata]);
 				started = true;
 			}
 			n += 1;

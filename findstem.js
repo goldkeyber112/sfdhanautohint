@@ -233,19 +233,19 @@ function findStems(glyph, strategy) {
 			var radicalStems = [];
 			var segs = radicals[r].mergedSegments.sort(function(a, b){ return a[0][0].yori - b[0][0].yori});
 			var ori = radicals[r].outline.ccw;
-			// We stem segments bottom-up.
-			for(var j = 0; j < segs.length; j++) if(segs[j] && ori === (segs[j][0][0].xori < segs[j][0][segs[j][0].length - 1].xori)) {
-				var stem = {low: segs[j]};
-				for(var k = j + 1; k < segs.length; k++) if(segs[k]){
+			// We stem segments upward-down.
+			for(var j = segs.length - 1; j >= 0; j--) if(segs[j] && ori !== (segs[j][0][0].xori < segs[j][0][segs[j][0].length - 1].xori)) {
+				var stem = { high: segs[j] };
+				for(var k = j - 1; k >= 0; k--) if(segs[k]){
 					var segOverlap = overlapInfo(segs[j], segs[k]);
-				if(segOverlap.len / segOverlap.la >= COLLISION_MIN_OVERLAP_RATIO || segOverlap.len / segOverlap.lb >= COLLISION_MIN_OVERLAP_RATIO) {
-						if(ori !== (segs[k][0][0].xori < segs[k][0][segs[k][0].length - 1].xori)
-								&& segs[k][0][0].yori - segs[j][0][0].yori <= MAX_STEM_WIDTH
-								&& segs[k][0][0].yori - segs[j][0][0].yori >= MIN_STEM_WIDTH) {
+					if(segOverlap.len / segOverlap.la >= COLLISION_MIN_OVERLAP_RATIO || segOverlap.len / segOverlap.lb >= COLLISION_MIN_OVERLAP_RATIO) {
+						if(ori === (segs[k][0][0].xori < segs[k][0][segs[k][0].length - 1].xori)
+								&& segs[j][0][0].yori - segs[k][0][0].yori <= MAX_STEM_WIDTH
+								&& segs[j][0][0].yori - segs[k][0][0].yori >= MIN_STEM_WIDTH) {
 							// A stem is found
-							stem.high = segs[k];
+							stem.low = segs[k];
 							stem.yori = stem.high[0][0].yori;
-							stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
+							stem.width = Math.abs(stem.high[0][0].yori - stem.low[0][0].yori);
 							stem.belongRadical = r;
 							segs[j] = segs[k] = null;
 							radicalStems.push(stem);
@@ -256,7 +256,7 @@ function findStems(glyph, strategy) {
 			};
 			stems = stems.concat(radicalStems)
 			radicals[r].stems = radicalStems;
-		}
+		};
 		return stems.sort(function(a, b){ return a.yori - b.yori });
 	};
 
