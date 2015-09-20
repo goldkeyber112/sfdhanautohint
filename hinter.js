@@ -136,8 +136,8 @@ function hint(glyph, ppem, strategy) {
 	})(directOverlaps);
 	
 	function flexCenterStem(t, m, b){
-		var spaceAboveOri = round((t.y0 - t.w0 - m.y0) * 4);
-		var spaceBelowOri = round((m.y0 - m.w0 - b.y0) * 4);
+		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4)
+		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4)
 		var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
 		m.center = xclamp(m.low * uppx,
 			m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
@@ -147,11 +147,27 @@ function hint(glyph, ppem, strategy) {
 	function flexCenter(avaliables) {
 		var bot = [];
 		var top = [];
+		var pri = [];
 		var topStems = [];
 		var botStems = [];
 		for(var j = 0; j < avaliables.length; j++) {
-			for(var k = 0; !bot[j] && k <= j; k++) if(overlaps[j][k]) bot[j] = avaliables[k];
-			for(var k = avaliables.length - 1; !top[j] && k >= j; k--) if(overlaps[k][j]) top[j] = avaliables[k];
+			pri[j] = 0;
+			for(var k = 0; !bot[j] && k <= j; k++) if(stems[j].belongRadical === stems[k].belongRadical && overlaps[j][k]) {
+				bot[j] = avaliables[k];
+				pri[j] = Math.max(pri[j], 1);
+			}
+			for(var k = 0; !bot[j] && k <= j; k++) if(overlaps[j][k]) {
+				bot[j] = avaliables[k];
+				pri[j] = Math.max(pri[j], 2);
+			}
+			for(var k = avaliables.length - 1; !top[j] && k >= j; k--) if(stems[j].belongRadical === stems[k].belongRadical && overlaps[k][j]) {
+				top[j] = avaliables[k];
+				pri[j] = Math.max(pri[j], 1);
+			}
+			for(var k = avaliables.length - 1; !top[j] && k >= j; k--) if(overlaps[k][j]) {
+				top[j] = avaliables[k];
+				pri[j] = Math.max(pri[j], 2);
+			}
 			if(atGlyphTop(stems[j])
 				&& !stems[j].hasRadicalLeftDistancedPointAbove
 				&& !stems[j].hasRadicalRightDistancedPointAbove) topStems.push(avaliables[j]);
@@ -179,7 +195,7 @@ function hint(glyph, ppem, strategy) {
 				botStems[j].center = cmin + (botStems[j].originalCenter - botStems[jmin].originalCenter)
 			}
 		}
-		for(var j = 0; j < avaliables.length; j++) {
+		for(var priority = 2; priority >= 0; priority -= 1) for(var j = 0; j < avaliables.length; j++) if(pri[j] === priority){
 			if(top[j] && bot[j] && top[j] !== bot[j]){
 				flexCenterStem(top[j], avaliables[j], bot[j])
 			}
@@ -481,8 +497,6 @@ function hint(glyph, ppem, strategy) {
 				} else if(canBeAdjustedUp(stems, j, 1.8 * uppx) && stems[j].ytouch < avaliables[j].high * uppx) {
 					if(stems[j].yori - stems[j].ytouch > 0.6 * uppx) { 
 						stems[j].ytouch += uppx;
-					} else if(spaceBelow(stems, j, -upm * 3) < 0.5 * uppx){
-						stems[j].ytouch -= uppx
 					}
 				};
 			};
@@ -543,7 +557,7 @@ function hint(glyph, ppem, strategy) {
 			for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]) { allocateUp(j) };
 		}
 		// Avoid thin strokes
-		if(WIDTH_GEAR_PROPER >= 2) {
+		if(WIDTH_GEAR_PROPER >= 2 && WIDTH_GEAR_MIN >= 2) {
 			for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= uppx) able = false;
@@ -579,10 +593,11 @@ function hint(glyph, ppem, strategy) {
 					stems[j].ytouch += uppx
 				}
 			};
-			if(ppem === 26) console.log(stems);
-			// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
+			
+			// Triplet balancing
 			for(var t = 0; t < triplets.length; t++){
 				var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2];
+				// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
 				if(stems[w].touchwidth < uppx * WIDTH_GEAR_PROPER 
 					&& stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch >= 1.99 * uppx && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 2.01 * uppx 
 					&& stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 1.01 * uppx 
@@ -591,7 +606,18 @@ function hint(glyph, ppem, strategy) {
 					stems[w].ytouch += uppx;
 					stems[w].touchwidth += uppx;
 				}
+				
+				// [1] 1 [2] 2 [2] -> [2] 1 [2] 1 [2]
+				else if(stems[j].touchwidth < uppx * WIDTH_GEAR_PROPER 
+					&& stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch >= 1.99 * uppx && stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 2.01 * uppx 
+					&& stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 1.01 * uppx 
+					&& stems[k].ytouch > avaliables[k].low * uppx){
+					stems[k].ytouch -= uppx;
+					stems[j].touchwidth += uppx;
+				}
 			}
+			
+			// Edge touch balancing
 			for(var j = 0; j < stems.length; j++) if(stems[j].touchwidth === uppx && stems[j].ytouch > pixelBottom + uppx * 2) {
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && !edgetouch(stems[j], stems[k])) able = false;

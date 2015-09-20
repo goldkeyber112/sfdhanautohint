@@ -55,6 +55,8 @@ function untouchAll(contours) {
 }
 var SUPERSAMPLING = 8;
 var DPI = 2;
+function BY_PRIORITY_SHORT(p, q){ return q[2] - p[2] }
+function BY_PRIORITY_IP(p, q){ return q[3] - p[3] }
 function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 	var rtg = roundings.Rtg(strategy.UPM, ppem);
 	for(var j = 0; j < glyphs.length; j++){
@@ -92,14 +94,14 @@ function RenderPreviewForPPEM(hdc, basex, basey, ppem) {
 			})
 		});
 		// IPs
-		features.shortAbsorptions.forEach(function(group){
+		features.shortAbsorptions.sort(BY_PRIORITY_SHORT).forEach(function(group){
 			var a = glyph.indexedPoints[group[0]]
 			var b = glyph.indexedPoints[group[1]]
 			b.touched = true;
 			b.ytouch = b.yori + a.ytouch - a.yori;
 		});
 		// IPs
-		features.interpolations.forEach(function(group){
+		features.interpolations.sort(BY_PRIORITY_IP).forEach(function(group){
 			var a = glyph.indexedPoints[group[0]]
 			var b = glyph.indexedPoints[group[1]]
 			var c = glyph.indexedPoints[group[2]]

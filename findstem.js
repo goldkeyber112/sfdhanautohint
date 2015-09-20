@@ -246,7 +246,7 @@ function findStems(glyph, strategy) {
 							stem.high = segs[k];
 							stem.yori = stem.high[0][0].yori;
 							stem.width = Math.abs(segs[k][0][0].yori - segs[j][0][0].yori);
-							stem.belongRadical = radicals[r];
+							stem.belongRadical = r;
 							segs[j] = segs[k] = null;
 							radicalStems.push(stem);
 						}
@@ -285,7 +285,7 @@ function findStems(glyph, strategy) {
 		var xmin = Math.min(a0, b0, az, bz), xmax = Math.max(a0, b0, az, bz);
 		for(var rad = 0; rad < glyph.radicals.length; rad++){
 			var radical = glyph.radicals[rad];
-			var sameRadical = (radical === stem.belongRadical);
+			var sameRadical = (radical === glyph.radicals[stem.belongRadical]);
 			for(var j = 0; j < radical.parts.length; j++) for(var k = 0; k < radical.parts[j].points.length - 1; k++) {
 				var point = radical.parts[j].points[k];
 				if(point.yori > stem.yori && point.xori < xmax - blueFuzz && point.xori > xmin + blueFuzz) {

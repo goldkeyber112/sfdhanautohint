@@ -29,11 +29,11 @@ exports.extractFeature = function(glyph, strategy) {
 		// get highkey and lowkey
 		var highkey = s.high[0][0], lowkey = s.low[0][0], highnonkey = [], lownonkey = [];
 		var jHigh = 0, jLow = 0;
-		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) if(s.high[j][k].id >= 0 && intercept(s.high[j][k], slope) < intercept(highkey, slope)) {
+		for(var j = 0; j < s.high.length; j++) for(var k = 0; k < s.high[j].length; k++) if(s.high[j][k].id >= 0 && s.high[j][k].xori < highkey.xori) {
 			highkey = s.high[j][k];
 			jHigh = j;
 		}
-		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) if(s.low[j][k].id >= 0 && intercept(s.low[j][k], slope)> intercept(lowkey, slope)) {
+		for(var j = 0; j < s.low.length; j++) for(var k = 0; k < s.low[j].length; k++) if(s.low[j][k].id >= 0 && s.low[j][k].xori < lowkey.xori) {
 			lowkey = s.low[j][k];
 			jLow = j;
 		}
@@ -97,17 +97,17 @@ exports.extractFeature = function(glyph, strategy) {
 	var shortAbsorptions = [];
 	function BY_YORI(p, q){ return p.yori - q.yori }
 
-	function interpolateByKeys(pts, keys, inSameRadical){
-		for(var k = 0; k < pts.length; k++) if(!pts[k].touched) {
+	function interpolateByKeys(pts, keys, inSameRadical, priority){
+		for(var k = 0; k < pts.length; k++) if(!pts[k].touched && !pts[k].donttouch) {
 			for(var m = 1; m < keys.length; m++) {
 				if(strategy.DO_SHORT_ABSORPTION && inSameRadical && pts[k].yori - keys[m - 1].yori <= strategy.MAX_STEM_WIDTH
 					&& Math.abs(pts[k].xori - keys[m - 1].xori) <= strategy.MAX_STEM_WIDTH) {
-					shortAbsorptions.push([keys[m - 1].id, pts[k].id]);
+					shortAbsorptions.push([keys[m - 1].id, pts[k].id, priority]);
 					pts[k].touched = true;
 					break;
 				}
 				if(keys[m].yori > pts[k].yori && keys[m - 1].yori <= pts[k].yori) {
-					interpolations.push([keys[m - 1].id, keys[m].id, pts[k].id]);
+					interpolations.push([keys[m - 1].id, keys[m].id, pts[k].id, priority]);
 					pts[k].touched = true;
 					break;
 				}
@@ -120,24 +120,45 @@ exports.extractFeature = function(glyph, strategy) {
 			if(contours[j].points[k].touched && contours[j].points[k].keypoint) {
 				glyphKeypoints.push(contours[j].points[k]);
 			}
-		}
+		};
 		glyphKeypoints = glyphKeypoints.sort(BY_YORI);
+		var records = [];
 
 		for(var j = 0; j < contours.length; j++) {
 			var contourpoints = contours[j].points
-			var contourKeypoints = contourpoints.filter(function(p){ return p.touched });
-			var contourExtrema = [];
-			for(var k = 0; k < contours[j].points.length; k++) {
-				var point = contours[j].points[k]
-				if(point.yExtrema && !point.touched && !point.donttouch) {
-					contourExtrema.push(point);
-				}
-			};
-			if(contourKeypoints.length > 1) { 
-				interpolateByKeys(contourExtrema, contourKeypoints.sort(BY_YORI), true)
+			var contourKeypoints = contourpoints.filter(function(p){ return p.touched }).sort(BY_YORI);
+			var contourExtrema = contourpoints.filter(function(p){ return p.xExtrema || p.yExtrema }).sort(BY_YORI);
+
+			if(contourExtrema.length > 1){
+				var topbot = [contourExtrema[0], contourExtrema[contourExtrema.length - 1]];
+				var midex = contourExtrema.slice(1, -1);
+				records.push({
+					topbot: topbot,
+					midex: midex,
+					ck: contourKeypoints,
+					ckx: contourKeypoints.concat(topbot).sort(BY_YORI)
+				})
+			} else {
+				records.push({
+					topbot: [],
+					midex: midex,
+					ck: contourKeypoints,
+					ckx: contourKeypoints
+				})
 			}
-			interpolateByKeys(contourExtrema, glyphKeypoints, false)
-		}
+		};
+		for(var j = 0; j < contours.length; j++) {
+			if(records[j].ck.length > 1){
+				interpolateByKeys(records[j].topbot, records[j].ck, true, 2)
+			}
+			interpolateByKeys(records[j].topbot, glyphKeypoints, false, 2);
+		};
+		for(var j = 0; j < contours.length; j++) {
+			if(records[j].ckx.length > 1){
+				interpolateByKeys(records[j].midex, records[j].ckx, true, 1)
+			}
+			interpolateByKeys(records[j].midex, glyphKeypoints, false, 1)
+		};
 	};
 	findInterpolates(glyph.contours);
 
@@ -164,6 +185,7 @@ exports.extractFeature = function(glyph, strategy) {
 				width: s.width,
 				atGlyphTop: s.atGlyphTop,
 				atGlyphBottom: s.atGlyphBottom,
+				belongRadical: s.belongRadical,
 				
 				hasGlyphStemAbove: s.hasGlyphStemAbove,
 				hasSameRadicalStemAbove: s.hasSameRadicalStemAbove,

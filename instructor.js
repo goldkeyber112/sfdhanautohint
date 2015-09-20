@@ -211,13 +211,23 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 			}
 		});
 	};
+	
+	// Interpolations and short absorptions has two priority: 2 and 1
+	// we will pick out them and process separately
+	var ip2 = [], ip1 = [];
+	var sa2 = [], sa1 = [];
+	for(var j = 0; j < glyph.interpolations.length; j++) { (glyph.interpolations[j][3] === 2 ? ip2 : ip1).push(glyph.interpolations[j]) }
+	for(var j = 0; j < glyph.shortAbsorptions.length; j++) { (glyph.shortAbsorptions[j][2] === 2 ? sa2 : sa1).push(glyph.shortAbsorptions[j]) }
 
 	// Interpolations
 	tt = tt.concat(
 		invokesToInstrs(invocations, STACK_DEPTH),
 		mirps,
-		invokesToInstrs(ipInvokes(glyph.interpolations).concat(
-			shortMdrpInvokes(glyph.shortAbsorptions),
+		invokesToInstrs([].concat(
+			ipInvokes(ip2),
+			shortMdrpInvokes(sa2),
+			ipInvokes(ip1),
+			shortMdrpInvokes(sa1),
 			isalInvocations
 		), STACK_DEPTH));
 
