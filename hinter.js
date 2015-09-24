@@ -136,8 +136,8 @@ function hint(glyph, ppem, strategy) {
 	})(directOverlaps);
 	
 	function flexCenterStem(t, m, b){
-		var spaceAboveOri = roundUp((t.y0 - t.w0 - m.y0) * 4);
-		var spaceBelowOri = roundUp((m.y0 - m.w0 - b.y0) * 4);
+		var spaceAboveOri = round((t.originalCenter - t.properWidth - m.originalCenter) * 8);
+		var spaceBelowOri = round((m.originalCenter - m.properWidth - b.originalCenter) * 8);
 		if(spaceAboveOri > 0 && spaceBelowOri > 0) {
 			var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
 			m.center = xclamp(m.low * uppx,
