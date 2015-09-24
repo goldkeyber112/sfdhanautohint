@@ -135,7 +135,7 @@ function hint(glyph, ppem, strategy) {
 		return o;
 	})(directOverlaps);
 	
-	function flexCenterStem(t, m, b){
+	function flexMiddleStem(t, m, b){
 		var spaceAboveOri = round((t.originalCenter - t.properWidth - m.originalCenter) * 8);
 		var spaceBelowOri = round((m.originalCenter - m.properWidth - b.originalCenter) * 8);
 		if(spaceAboveOri > 0 && spaceBelowOri > 0) {
@@ -198,8 +198,8 @@ function hint(glyph, ppem, strategy) {
 			}
 		}
 		for(var priority = 2; priority >= 0; priority -= 1) for(var j = 0; j < avaliables.length; j++) if(pri[j] === priority){
-			if(top[j] && bot[j] && top[j] !== bot[j]){
-				flexCenterStem(top[j], avaliables[j], bot[j])
+			if(top[j] && bot[j] && top[j] !== bot[j] && ppem <= PPEM_INCREASE_GLYPH_LIMIT){
+				flexMiddleStem(top[j], avaliables[j], bot[j])
 			}
 			if(!stems[j].hasGlyphStemBelow) {
 				avaliables[j].high = Math.round(Math.max(avaliables[j].center, pixelBottom + avaliables[j].properWidth + (atGlyphBottom(stems[j]) ? 0 : uppx)) / uppx);
