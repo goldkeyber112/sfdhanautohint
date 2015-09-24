@@ -198,7 +198,7 @@ function hint(glyph, ppem, strategy) {
 			}
 		}
 		for(var priority = 2; priority >= 0; priority -= 1) for(var j = 0; j < avaliables.length; j++) if(pri[j] === priority){
-			if(top[j] && bot[j] && top[j] !== bot[j] && ppem <= PPEM_INCREASE_GLYPH_LIMIT){
+			if(top[j] && bot[j] && top[j] !== bot[j]){
 				flexMiddleStem(top[j], avaliables[j], bot[j])
 			}
 			if(!stems[j].hasGlyphStemBelow) {
@@ -227,19 +227,22 @@ function hint(glyph, ppem, strategy) {
 				&& !stems[j].hasRadicalLeftDistancedPointAbove
 				&& !stems[j].hasRadicalRightDistancedPointAbove) {
 					if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-						center += pixelTop - BLUEZONE_TOP_LIMIT;
+						center += Math.max(0, pixelTop - BLUEZONE_TOP_LIMIT);
 					} else {
-						center += pixelTop - BLUEZONE_TOP_CENTER;
+						center += Math.max(0, pixelTop - BLUEZONE_TOP_CENTER);
 					}
 			};
 			if(atGlyphBottom(stems[j])) {
 				if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-					center += pixelBottom - BLUEZONE_BOTTOM_LIMIT;
+					center += Math.min(0, pixelBottom - BLUEZONE_BOTTOM_LIMIT);
+					if(center <= pixelBottom + w + 2 * uppx) {
+						center -= uppx;
+					}
 				} else {
-					center += pixelBottom - BLUEZONE_BOTTOM_CENTER;
-				}
-				if(center <= pixelBottom + w + 2 * uppx) {
-					center -= uppx;
+					center += Math.min(0, pixelBottom - BLUEZONE_BOTTOM_CENTER);
+					if(center <= pixelBottom + w + 0.6 * uppx) {
+						center -= uppx;
+					}
 				}
 			};
 			center = xclamp(low, center, high);
@@ -368,7 +371,7 @@ function hint(glyph, ppem, strategy) {
 		};
 		for(var t = 0; t < triplets.length; t++){
 			var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2], d = triplets[t][3];
-			if(y[j] > y[k] && y[k] > y[w] && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w])) {
+			if(y[j] > y[k] && y[k] > y[w] && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w] || d < blueFuzz && d > -blueFuzz && (y[j] - y[k] - y[k] + y[w] > 1 || y[j] - y[k] - y[k] + y[w] < -1))) {
 				p += (A[j][k] + A[k][w]) * COEFF_DISTORT;
 			}
 		}
