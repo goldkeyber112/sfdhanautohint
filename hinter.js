@@ -262,22 +262,7 @@ function hint(glyph, ppem, strategy) {
 
 	var COLLISION_FUZZ = 1.04;
 	var HIGHLY_COLLISION_FUZZ = 0.3;
-	function spaceBelow(stems, k, bottom){
-		var space = stems[k].ytouch - stems[k].touchwidth - bottom;
-		for(var j = k - 1; j >= 0; j--){
-			if(directOverlaps[k][j] && Math.abs(stems[k].ytouch - stems[j].ytouch) - stems[k].touchwidth < space)
-				space = stems[k].ytouch - stems[j].ytouch - stems[k].touchwidth
-		}
-		return space;
-	}
-	function spaceAbove(stems, k, top){
-		var space = top - stems[k].ytouch;
-		for(var j = k + 1; j < stems.length; j++){
-			if(directOverlaps[j][k] && Math.abs(stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth < space)
-				space = stems[j].ytouch - stems[k].ytouch - stems[j].touchwidth
-		}
-		return space;
-	}
+
 	function canBeAdjustedUp(stems, k, distance){
 		for(var j = k + 1; j < stems.length; j++){
 			if(directOverlaps[j][k] && (stems[j].ytouch - stems[k].ytouch) - stems[j].touchwidth <= distance)
@@ -486,45 +471,66 @@ function hint(glyph, ppem, strategy) {
 	function edgetouch(s, t) {
 		return (s.xmin < t.xmin && t.xmin < s.xmax && s.xmax < t.xmax && (s.xmax - t.xmin) / (s.xmax - s.xmin) <= 0.2)
 			|| (t.xmin < s.xmin && s.xmin < t.xmax && t.xmax < s.xmax && (t.xmax - s.xmin) / (s.xmax - s.xmin) <= 0.2)
-	}
+	};
 	// Pass 4 : Width allocation
+	function spaceBelow(y, w, k, bottom){
+		var space = y[k] - w[k] - bottom;
+		for(var j = k - 1; j >= 0; j--){
+			if(directOverlaps[k][j] && Math.abs(y[k] - y[j]) - w[k] < space)
+				space = y[k] - y[j] - w[k]
+		}
+		return space;
+	}
+	function spaceAbove(y, w, k, top){
+		var space = top - y[k];
+		for(var j = k + 1; j < stems.length; j++){
+			if(directOverlaps[j][k] && Math.abs(y[j] - y[k]) - w[j] < space)
+				space = y[j] - y[k] - w[j]
+		}
+		return space;
+	}
 	function allocateWidth(stems) {
-		var ytouchmin = Math.min.apply(Math, stems.map(function(s){ return s.ytouch }));
-		var ytouchmax = Math.max.apply(Math, stems.map(function(s){ return s.ytouch }));
 		var allocated = [];
+		var y = [];
+		var w = [];
 		var properWidths = [];
-		for(var j = 0; j < stems.length; j++) {
-			properWidths[j] = calculateWidth(stems[j].width)
+		for(var j = 0; j < stems.length; j++) { 
+			properWidths[j] = calculateWidth(stems[j].width) / uppx
+			y[j] = Math.round(stems[j].ytouch / uppx)
+			w[j] = 1
 		};
+		
+		var pixelTopPixels = Math.round(pixelTop / uppx);
+		var pixelBottomPixels = Math.round(pixelBottom / uppx);
 
 		function allocateDown(j) {
-			var sb = spaceBelow(stems, j, pixelBottom - uppx);
+			var sb = spaceBelow(y, w, j, pixelBottomPixels - 1);
 			var wr = properWidths[j];
-			var w = Math.min(wr, round(stems[j].touchwidth + sb - uppx));
-			if(w < uppx + 1) return;
-			if(sb + stems[j].touchwidth > wr + uppx - 1 && stems[j].ytouch - wr >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - wr >= pixelBottom - 1) {
-				stems[j].touchwidth = wr;
+			var wx = Math.min(wr, w[j] + sb - 1);
+			if(wx <= 1) return;
+			if(sb + w[j] > wr + 1 && y[j] - wr >= pixelBottomPixels + 1 || atGlyphBottom(stems[j]) && y[j] - wr >= pixelBottomPixels) {
+				w[j] = wr;
 				allocated[j] = true;
-			} else if(stems[j].ytouch - w >= pixelBottom + uppx - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch - w >= pixelBottom - 1) {
-				stems[j].touchwidth = w;
+			} else if(y[j] - wx >= pixelBottomPixels + 1 || atGlyphBottom(stems[j]) && y[j] - wx >= pixelBottomPixels) {
+				w[j] = wx;
 				if(w >= wr) allocated[j] = true;
 			}
 		};
 		function allocateUp(j) {
-			var sb = spaceBelow(stems, j, pixelBottom - uppx);
-			var sa = spaceAbove(stems, j, pixelTop + uppx);
+			var sb = spaceBelow(y, w, j, pixelBottomPixels - 1);
+			var sa = spaceAbove(y, w, j, pixelTopPixels + 1);
 			var wr = properWidths[j];
-			var w = Math.min(wr, round(stems[j].touchwidth + sb));
-			if(w < uppx + 1) return;
-			if(sa > 1.75 * uppx && stems[j].ytouch < avaliables[j].high * uppx) {
-				if(sb + stems[j].touchwidth > wr - 1 && stems[j].ytouch - wr >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - wr >= pixelBottom - 1) {
-					stems[j].touchwidth = wr;
-					stems[j].ytouch += uppx;
+			var wx = Math.min(wr, w[j] + sb);
+			if(wx <= 1) return;
+			if(sa > 1.75 && y[j] < avaliables[j].high) {
+				if(sb + w[j] >= wr && y[j] - wr >= pixelBottomPixels || atGlyphBottom(stems[j]) && y[j] - wr + 1 >= pixelBottomPixels) {
+					y[j] += 1;
+					w[j] = wr;
 					allocated[j] = true;
-				} else if(stems[j].ytouch - w >= pixelBottom - 1 || atGlyphBottom(stems[j]) && stems[j].ytouch + uppx - w >= pixelBottom - 1) {
-					stems[j].touchwidth = w;
-					stems[j].ytouch += uppx;
-					if(w >= wr) allocated[j] = true;
+				} else if(y[j] - wx >= pixelBottomPixels || atGlyphBottom(stems[j]) && y[j] - wx + 1 >= pixelBottomPixels) {
+					y[j] += 1;
+					w[j] = wx;
+					if(wx >= wr) allocated[j] = true;
 				}
 			}
 		};
@@ -537,76 +543,60 @@ function hint(glyph, ppem, strategy) {
 			for(var j = 0; j < stems.length; j++) if(!allocated[j]) { allocateDown(j) };
 			for(var j = stems.length - 1; j >= 0; j--) if(!allocated[j]) { allocateUp(j) };
 		}
+
 		// Avoid thin strokes
 		if(WIDTH_GEAR_PROPER >= 2 && WIDTH_GEAR_MIN >= 2) {
-			for(var j = stems.length - 1; j >= 0; j--) if(!stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
+			for(var psi = 0; psi < 2; psi++) for(var j = stems.length - 1; j >= 0; j--) if(([false, true][psi] || !stems[j].hasGlyphStemAbove) && w[j] <= 1){
 				var able = true;
-				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= uppx) able = false;
+				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - y[k] <= 2 && w[k] <= [1, 2][psi]) able = false;
 				if(able){
-					stems[j].touchwidth += uppx;
-					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx) {
-						stems[k].ytouch -= uppx;
-						stems[k].touchwidth -= uppx;
+					w[j] += 1;
+					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - y[k] <= 2) {
+						y[k] -= 1;
+						w[k] -= 1;
 					}
 				}
 			}
-			for(var j = stems.length - 1; j >= 0; j--) if(stems[j].touchwidth <= uppx * 1.01){
-				var able = true;
-				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx && stems[k].touchwidth <= 2 * uppx) able = false;
-				if(able){
-					stems[j].touchwidth += uppx;
-					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && stems[j].ytouch - stems[k].ytouch <= 2.01 * uppx) {
-						stems[k].ytouch -= uppx;
-						stems[k].touchwidth -= uppx;
-					}
-				}
-			}
-			for(var j = 0; j < stems.length; j++) if(stems[j].hasGlyphStemAbove && stems[j].touchwidth <= uppx * 1.01){
+			for(var j = 0; j < stems.length; j++) if(stems[j].hasGlyphStemAbove && w[j] <= 1){
 				var able = true;
 				for(var k = j + 1; k < stems.length; k++) {
-					if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx * 1.01 && stems[k].touchwidth <= 2 * uppx) able = false;
+					if(directOverlaps[k][j] && y[k] - y[j] <= w[k] + 1 && w[k] <= 2) able = false;
 				}
 				if(able){
-					for(var k = j + 1; k < stems.length; k++) if(directOverlaps[k][j] && stems[k].ytouch - stems[j].ytouch <= stems[k].touchwidth + uppx * 1.01) {
-						stems[k].touchwidth -= uppx;
+					for(var k = j + 1; k < stems.length; k++) if(directOverlaps[k][j] && y[k] - y[j] <= w[k] + 1) {
+						w[k] -= 1
 					}
-					stems[j].touchwidth += uppx;
-					stems[j].ytouch += uppx
+					y[j] += 1;
+					w[j] += 1;
 				}
 			};
 			
 			// Triplet balancing
 			for(var t = 0; t < triplets.length; t++){
-				var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2];
+				var j = triplets[t][0], k = triplets[t][1], m = triplets[t][2];
 				// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
-				if(stems[w].touchwidth < uppx * WIDTH_GEAR_PROPER 
-					&& stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch >= 1.99 * uppx && stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 2.01 * uppx 
-					&& stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 1.01 * uppx 
-					&& stems[k].ytouch < avaliables[k].high * uppx && stems[w].ytouch < avaliables[k].high * uppx){
-					stems[k].ytouch += uppx;
-					stems[w].ytouch += uppx;
-					stems[w].touchwidth += uppx;
+				if(w[m] < WIDTH_GEAR_PROPER && y[j] - w[j] - y[k] === 2 && y[k] - w[k] - y[m] === 1 && y[k] < avaliables[k].high && y[m] < avaliables[k].high){
+					y[k] += 1; y[m] += 1; w[m] += 1;
 				}
-				
 				// [1] 1 [2] 2 [2] -> [2] 1 [2] 1 [2]
-				else if(stems[j].touchwidth < uppx * WIDTH_GEAR_PROPER 
-					&& stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch >= 1.99 * uppx && stems[k].ytouch - stems[k].touchwidth - stems[w].ytouch <= 2.01 * uppx 
-					&& stems[j].ytouch - stems[j].touchwidth - stems[k].ytouch <= 1.01 * uppx 
-					&& stems[k].ytouch > avaliables[k].low * uppx){
-					stems[k].ytouch -= uppx;
-					stems[j].touchwidth += uppx;
+				else if(w[j] < WIDTH_GEAR_PROPER && y[j] - w[j] - y[k] === 1 && y[k] - w[k] - y[m] === 2 && y[k] > avaliables[k].low){
+					w[j] += 1; y[k] += 1;
 				}
 			}
 			
 			// Edge touch balancing
-			for(var j = 0; j < stems.length; j++) if(stems[j].touchwidth === uppx && stems[j].ytouch > pixelBottom + uppx * 2) {
+			if(false) for(var j = 0; j < stems.length; j++) if(w[j] <= 1 && y[j] > pixelBottomPixels + 2) {
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && !edgetouch(stems[j], stems[k])) able = false;
 				if(able) {
-					stems[j].touchwidth = uppx * 2
+					w[j] += 1;
 				}
 			}
-		}
+		};
+		for(var j = 0; j < stems.length; j++) { 
+			stems[j].touchwidth = w[j] * uppx;
+			stems[j].ytouch = y[j] * uppx;
+		};
 	};
 	var instructions = []
 	// Touching procedure
