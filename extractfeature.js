@@ -16,6 +16,14 @@ function slopeOf(segs){
 function intercept(point, slope){
 	return point.yori - point.xori * slope;
 }
+function TransitionClosure(d){
+	var o = [];
+	for(var j = 0; j < d.length; j++) { o[j] = d[j].slice(0) };
+	for(var m = 0; m < o.length; m++)
+		for(var j = 0; j < o.length; j++)
+			for(var k = 0; k < o.length; k++) o[j][k] = o[j][k] || o[j][m] && o[m][k];
+	return o;
+}
 exports.extractFeature = function(glyph, strategy) {
 	// Stem Keypoints
 	for(var js = 0; js < glyph.stems.length; js++) {
@@ -175,6 +183,25 @@ exports.extractFeature = function(glyph, strategy) {
 		};
 		return d;
 	})();
+	var overlaps = TransitionClosure(directOverlaps);
+	var blanks = function(){
+		var blanks = [];
+		for(var j = 0; j < directOverlaps.length; j++) {
+			blanks[j] = [];
+			for(var k = 0; k < directOverlaps[j].length; k++) if(directOverlaps[j][k]) {
+				blanks[j][k] = glyph.stems[j].yori - glyph.stems[j].width - glyph.stems[k].yori;
+			}
+		};
+		return blanks;
+	}();
+	var triplets = function(){
+		var triplets = [];
+		for(var j = 0; j < glyph.stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] > 0 && blanks[k][w] > 0) {
+			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
+		};
+		return triplets;
+	}();
+	
 	return {
 		stats: glyph.stats,
 		stems: glyph.stems.map(function(s){
@@ -242,6 +269,8 @@ exports.extractFeature = function(glyph, strategy) {
 		}),
 		stemOverlaps: glyph.stemOverlaps,
 		directOverlaps: directOverlaps,
+		overlaps: overlaps,
+		triplets: triplets,
 		collisionMatrices: glyph.collisionMatrices,
 		topBluePoints: topBluePoints.map(function(x){ return x.id }),
 		bottomBluePoints: bottomBluePoints.map(function(x){ return x.id }),

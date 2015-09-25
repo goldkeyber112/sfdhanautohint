@@ -126,18 +126,12 @@ function hint(glyph, ppem, strategy) {
 	};
 
 	var directOverlaps = glyph.directOverlaps;
-	var overlaps = (function(d){
-		var o = [];
-		for(var j = 0; j < d.length; j++) { o[j] = d[j].slice(0) };
-		for(var m = 0; m < o.length; m++)
-			for(var j = 0; j < o.length; j++)
-				for(var k = 0; k < o.length; k++) o[j][k] = o[j][k] || o[j][m] && o[m][k];
-		return o;
-	})(directOverlaps);
+	var overlaps = glyph.overlaps;
+	var triplets = glyph.triplets;
 	
 	function flexMiddleStem(t, m, b){
-		var spaceAboveOri = round((t.originalCenter - t.properWidth - m.originalCenter) * 8);
-		var spaceBelowOri = round((m.originalCenter - m.properWidth - b.originalCenter) * 8);
+		var spaceAboveOri = t.originalCenter - t.properWidth - m.originalCenter;
+		var spaceBelowOri = m.originalCenter - m.properWidth - b.originalCenter;
 		if(spaceAboveOri > 0 && spaceBelowOri > 0) {
 			var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
 			m.center = xclamp(m.low * uppx,
@@ -266,24 +260,6 @@ function hint(glyph, ppem, strategy) {
 		return avaliables;
 	}(stems);
 
-	var blanks = function(){
-		var blanks = [];
-		for(var j = 0; j < directOverlaps.length; j++) {
-			blanks[j] = [];
-			for(var k = 0; k < directOverlaps[j].length; k++) if(directOverlaps[j][k]) {
-				blanks[j][k] = avaliables[j].center - avaliables[k].center;
-			}
-		};
-		return blanks;
-	}();
-	var triplets = function(){
-		var triplets = [];
-		for(var j = 0; j < stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] > 0 && blanks[k][w] > 0) {
-			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
-		};
-		return triplets;
-	}();
-
 	var COLLISION_FUZZ = 1.04;
 	var HIGHLY_COLLISION_FUZZ = 0.3;
 	function spaceBelow(stems, k, bottom){
@@ -371,7 +347,7 @@ function hint(glyph, ppem, strategy) {
 		};
 		for(var t = 0; t < triplets.length; t++){
 			var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2], d = triplets[t][3];
-			if(y[j] > y[k] && y[k] > y[w] && (d > 0 && y[j] - y[k] < y[k] - y[w] || d < 0 && y[j] - y[k] > y[k] - y[w] || d < blueFuzz && d > -blueFuzz && (y[j] - y[k] - y[k] + y[w] > 1 || y[j] - y[k] - y[k] + y[w] < -1))) {
+			if(y[j] > y[k] && y[k] > y[w] && (d >= blueFuzz && y[j] - y[k] < y[k] - y[w] || d <= -blueFuzz && y[j] - y[k] > y[k] - y[w] || d < blueFuzz && d > -blueFuzz && (y[j] - y[k] - y[k] + y[w] >= 2 || y[j] - y[k] - y[k] + y[w] <= -2))) {
 				p += (A[j][k] + A[k][w]) * COEFF_DISTORT;
 			}
 		}
