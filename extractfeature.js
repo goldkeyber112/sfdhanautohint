@@ -169,13 +169,16 @@ exports.extractFeature = function(glyph, strategy) {
 		};
 	};
 	findInterpolates(glyph.contours);
-
+	function edgetouch(s, t) {
+		return (s.xmin < t.xmin && t.xmin < s.xmax && s.xmax < t.xmax && (s.xmax - t.xmin) / (s.xmax - s.xmin) <= 0.2)
+			|| (t.xmin < s.xmin && s.xmin < t.xmax && t.xmax < s.xmax && (t.xmax - s.xmin) / (s.xmax - s.xmin) <= 0.2)
+	};
 	var directOverlaps = (function(){
 		var d = [];
 		for(var j = 0; j < glyph.stemOverlaps.length; j++){
 			d[j] = [];
 			for(var k = 0; k < j; k++) {
-				d[j][k] = glyph.stemOverlaps[j][k] > strategy.COLLISION_MIN_OVERLAP_RATIO
+				d[j][k] = glyph.stemOverlaps[j][k] > strategy.COLLISION_MIN_OVERLAP_RATIO && !edgetouch(glyph.stems[j], glyph.stems[k])
 			}
 		};
 		for(var x = 0; x < d.length; x++) for(var y = 0; y < d.length; y++) for(var z = 0; z < d.length; z++) {
@@ -196,7 +199,7 @@ exports.extractFeature = function(glyph, strategy) {
 	}();
 	var triplets = function(){
 		var triplets = [];
-		for(var j = 0; j < glyph.stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] > 0 && blanks[k][w] > 0) {
+		for(var j = 0; j < glyph.stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] >= 0 && blanks[k][w] >= 0) {
 			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
 		};
 		return triplets;

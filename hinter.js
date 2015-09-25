@@ -580,12 +580,16 @@ function hint(glyph, ppem, strategy) {
 				}
 				// [1] 1 [2] 2 [2] -> [2] 1 [2] 1 [2]
 				else if(w[j] < WIDTH_GEAR_PROPER && y[j] - w[j] - y[k] === 1 && y[k] - w[k] - y[m] === 2 && y[k] > avaliables[k].low){
-					w[j] += 1; y[k] += 1;
+					w[j] += 1; y[k] -= 1;
+					if(spaceBelow(y, w, k, pixelBottomPixels - 1) < 1){ // reroll when a collision is made
+						w[j] -= 1;
+						y[k] += 1;
+					}
 				}
 			}
 			
 			// Edge touch balancing
-			if(false) for(var j = 0; j < stems.length; j++) if(w[j] <= 1 && y[j] > pixelBottomPixels + 2) {
+			for(var j = 0; j < stems.length; j++) if(w[j] <= 1 && y[j] > pixelBottomPixels + 2) {
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && !edgetouch(stems[j], stems[k])) able = false;
 				if(able) {
