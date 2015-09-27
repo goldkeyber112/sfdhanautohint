@@ -128,73 +128,29 @@ function hint(glyph, ppem, strategy) {
 	var directOverlaps = glyph.directOverlaps;
 	var overlaps = glyph.overlaps;
 	var triplets = glyph.triplets;
+	var flexes = glyph.flexes;
 	
 	function flexMiddleStem(t, m, b){
-		var spaceAboveOri = t.originalCenter - t.properWidth - m.originalCenter;
-		var spaceBelowOri = m.originalCenter - m.properWidth - b.originalCenter;
+		var spaceAboveOri = t.y0 - t.w0 / 2 - m.y0 + m.w0 / 2;
+		var spaceBelowOri = m.y0 - m.w0 / 2 - b.y0 + b.w0 / 2;
 		if(spaceAboveOri > 0 && spaceBelowOri > 0) {
-			var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
+			var totalSpaceFlexed = t.center - t.properWidth / 2 - b.center + b.properWidth / 2;
 			m.center = xclamp(m.low * uppx,
-				m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
+				m.properWidth / 2 + b.center - b.properWidth / 2 + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri)),
 				m.high * uppx)
 		}
 	}
-	
+	var cyb = pixelBottom + (ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelBottom - BLUEZONE_BOTTOM_LIMIT : pixelBottom - BLUEZONE_BOTTOM_CENTER);
+	var cyt = pixelTop + (ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelTop - BLUEZONE_TOP_LIMIT : pixelTop - BLUEZONE_TOP_CENTER);
+	function cy(y, w){
+		return w + cyb + (cyt - cyb - w) * xclamp(0, (y - BLUEZONE_BOTTOM_CENTER - w) / (BLUEZONE_TOP_CENTER - BLUEZONE_BOTTOM_CENTER - w), 1);
+	}
 	function flexCenter(avaliables) {
-		var bot = [];
-		var top = [];
-		var pri = [];
-		var topStems = [];
-		var botStems = [];
-		for(var j = 0; j < avaliables.length; j++) {
-			pri[j] = 0;
-			for(var k = 0; !bot[j] && k <= j; k++) if(stems[j].belongRadical === stems[k].belongRadical && overlaps[j][k]) {
-				bot[j] = avaliables[k];
-				pri[j] = Math.max(pri[j], 1);
-			}
-			for(var k = 0; !bot[j] && k <= j; k++) if(overlaps[j][k]) {
-				bot[j] = avaliables[k];
-				pri[j] = Math.max(pri[j], 2);
-			}
-			for(var k = avaliables.length - 1; !top[j] && k >= j; k--) if(stems[j].belongRadical === stems[k].belongRadical && overlaps[k][j]) {
-				top[j] = avaliables[k];
-				pri[j] = Math.max(pri[j], 1);
-			}
-			for(var k = avaliables.length - 1; !top[j] && k >= j; k--) if(overlaps[k][j]) {
-				top[j] = avaliables[k];
-				pri[j] = Math.max(pri[j], 2);
-			}
-			if(atGlyphTop(stems[j])
-				&& !stems[j].hasRadicalLeftDistancedPointAbove
-				&& !stems[j].hasRadicalRightDistancedPointAbove) topStems.push(avaliables[j]);
-			if(atGlyphBottom(stems[j])) botStems.push(avaliables[j]);
-		};
-		if(topStems.length > 1) {
-			var cmax = topStems[0].center;
-			var jmax = 0;
-			for(var j = 1; j < topStems.length; j++) if(topStems[j].center > cmax) {
-				cmax = topStems[j].center;
-				jmax = j;
-			}
-			for(var j = 0; j < topStems.length; j++) {
-				topStems[j].center = cmax + (topStems[j].originalCenter - topStems[jmax].originalCenter)
-			}
-		};
-		if(botStems.length > 1) {
-			var cmin = botStems[0].center;
-			var jmin = 0;
-			for(var j = 1; j < botStems.length; j++) if(botStems[j].center < cmin) {
-				cmin = botStems[j].center;
-				jmin = j;
-			}
-			for(var j = 0; j < botStems.length; j++) {
-				botStems[j].center = cmin + (botStems[j].originalCenter - botStems[jmin].originalCenter)
-			}
+		for(var j = 0; j < flexes.length; j++) {
+			flexMiddleStem(avaliables[flexes[j][0]], avaliables[flexes[j][1]], avaliables[flexes[j][2]]);
 		}
-		for(var priority = 2; priority >= 0; priority -= 1) for(var j = 0; j < avaliables.length; j++) if(pri[j] === priority){
-			if(top[j] && bot[j] && top[j] !== bot[j]){
-				flexMiddleStem(top[j], avaliables[j], bot[j])
-			}
+		// fix top and bottom stems
+		for(var j = 0; j < stems.length; j++){
 			if(!stems[j].hasGlyphStemBelow) {
 				avaliables[j].high = Math.round(Math.max(avaliables[j].center, pixelBottom + avaliables[j].properWidth + (atGlyphBottom(stems[j]) ? 0 : uppx)) / uppx);
 			};
@@ -209,34 +165,20 @@ function hint(glyph, ppem, strategy) {
 			var w = calculateWidth(stems[j].width);
 			
 			var low = round(stems[j].yori) - uppx;
-			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + uppx);
+			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + xclamp(uppx, stems[j].yori - w - BLUEZONE_BOTTOM_CENTER, WIDTH_GEAR_MIN * uppx));
 			
 			var high = round(stems[j].yori) + uppx;
-			high = Math.min(high, atGlyphTop(stems[j]) ? pixelTop : pixelTop - uppx);
+			high = xclamp(low,
+				ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelTop - (atGlyphTop(stems[j]) ? 0 : uppx): 
+					pixelTop - xclamp(atGlyphTop(stems[j]) ? 0 : uppx, round(BLUEZONE_TOP_CENTER - stems[j].yori), WIDTH_GEAR_MIN * uppx),
+				high);
 			
-			var center = stems[j].yori - stems[j].width / 2 + w / 2;
-			
-			// Enlarge glyph
-			if(atGlyphTop(stems[j])
-				&& !stems[j].hasRadicalLeftDistancedPointAbove
-				&& !stems[j].hasRadicalRightDistancedPointAbove) {
-					if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-						center += Math.max(0, pixelTop - BLUEZONE_TOP_LIMIT);
-					} else {
-						center += Math.max(0, pixelTop - BLUEZONE_TOP_CENTER);
-					}
-			};
+			var center = cy(stems[j].yori - stems[j].width / 2 + w / 2, w);
 			if(atGlyphBottom(stems[j])) {
-				if(ppem <= PPEM_INCREASE_GLYPH_LIMIT) {
-					center += Math.min(0, pixelBottom - BLUEZONE_BOTTOM_LIMIT);
-					if(center <= pixelBottom + w + 2 * uppx) {
-						center -= uppx;
-					}
-				} else {
-					center += Math.min(0, pixelBottom - BLUEZONE_BOTTOM_CENTER);
-					if(center <= pixelBottom + w + 0.6 * uppx) {
-						center -= uppx;
-					}
+				if(ppem <= PPEM_INCREASE_GLYPH_LIMIT && center <= pixelBottom + w + 2 * uppx) {
+					center -= uppx;
+				} else if (center <= pixelBottom + w + 0.6 * uppx) {
+					center -= uppx;
 				}
 			};
 			center = xclamp(low, center, high);
@@ -319,7 +261,6 @@ function hint(glyph, ppem, strategy) {
 	// The optimization target is the "collision potential" evaluated using stroke position
 	// state vector |y>. Due to randomized mutations, the result is not deterministic, though
 	// reliable under most cases.
-
 	function collidePotential(y, A, C, S, avaliables) {
 		var p = 0;
 		var n = y.length;
@@ -332,10 +273,16 @@ function hint(glyph, ppem, strategy) {
 		};
 		for(var t = 0; t < triplets.length; t++){
 			var j = triplets[t][0], k = triplets[t][1], w = triplets[t][2], d = triplets[t][3];
-			if(y[j] > y[k] && y[k] > y[w] && (d >= blueFuzz && y[j] - y[k] < y[k] - y[w] || d <= -blueFuzz && y[j] - y[k] > y[k] - y[w] || d < blueFuzz && d > -blueFuzz && (y[j] - y[k] - y[k] + y[w] >= 2 || y[j] - y[k] - y[k] + y[w] <= -2))) {
+			var spacejk = y[j] - y[k] - avaliables[j].properWidth / uppx;
+			var spacekw = y[k] - y[w] - avaliables[k].properWidth / uppx;
+			//if(spacejk <= 0 || spacekw <= 0) p += COEFF_DISTORT;
+			if(y[j] > y[k] && y[k] > y[w] && (
+				   d >= blueFuzz && spacejk < spacekw
+				|| d <= -blueFuzz && spacejk > spacekw
+				|| d < blueFuzz && d > -blueFuzz && (spacejk - spacekw >= 2 || spacejk - spacekw <= -2))) {
 				p += (A[j][k] + A[k][w]) * COEFF_DISTORT;
 			}
-		}
+		};
 		return p;
 	};
 	function ablationPotential(y, A, C, S, avaliables) {
@@ -495,7 +442,7 @@ function hint(glyph, ppem, strategy) {
 		var w = [];
 		var properWidths = [];
 		for(var j = 0; j < stems.length; j++) { 
-			properWidths[j] = calculateWidth(stems[j].width) / uppx
+			properWidths[j] = Math.round(calculateWidth(stems[j].width) / uppx)
 			y[j] = Math.round(stems[j].ytouch / uppx)
 			w[j] = 1
 		};
@@ -545,7 +492,13 @@ function hint(glyph, ppem, strategy) {
 		}
 
 		// Avoid thin strokes
-		if(WIDTH_GEAR_PROPER >= 2 && WIDTH_GEAR_MIN >= 2) {
+		for(var pass = 0; pass < 3; pass++) if(WIDTH_GEAR_PROPER >= 2 && WIDTH_GEAR_MIN >= 2) {
+			for(var j = 0; j < stems.length; j++) {
+				var sb = spaceBelow(y, w, j, pixelBottomPixels - 1);
+				var sa = spaceAbove(y, w, j, pixelTopPixels + 1);
+				if(sb >= 2 && sa < 1 && y[j] > avaliables[j].low) y[j] -= 1;
+				else if(sb < 1 && sa >= 2 && y[j] < avaliables[j].high) y[j] += 1;
+			}
 			for(var psi = 0; psi < 2; psi++) for(var j = stems.length - 1; j >= 0; j--) if(([false, true][psi] || !stems[j].hasGlyphStemAbove) && w[j] <= 1){
 				var able = true;
 				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - y[k] <= 2 && w[k] <= [1, 2][psi]) able = false;
@@ -575,11 +528,16 @@ function hint(glyph, ppem, strategy) {
 			for(var t = 0; t < triplets.length; t++){
 				var j = triplets[t][0], k = triplets[t][1], m = triplets[t][2];
 				// [3] 2 [3] 1 [2] -> [3] 1 [3] 1 [3]
-				if(w[m] < WIDTH_GEAR_PROPER && y[j] - w[j] - y[k] === 2 && y[k] - w[k] - y[m] === 1 && y[k] < avaliables[k].high && y[m] < avaliables[k].high){
+				if(w[m] <= properWidths[j] - 1 && y[j] - w[j] - y[k] >= 2 && y[k] - w[k] - y[m] === 1 && y[k] < avaliables[k].high && y[m] < avaliables[k].high){
 					y[k] += 1; y[m] += 1; w[m] += 1;
+					if(spaceAbove(y, w, k, pixelTopPixels + 1) < 1 || spaceAbove(y, w, m, pixelTopPixels + 1) < 1 || spaceBelow(y, w, k, pixelBottomPixels - 1) < 1) {
+						y[k] -= 1;
+						y[m] -= 1;
+						w[m] -= 1;
+					}
 				}
 				// [1] 1 [2] 2 [2] -> [2] 1 [2] 1 [2]
-				else if(w[j] < WIDTH_GEAR_PROPER && y[j] - w[j] - y[k] === 1 && y[k] - w[k] - y[m] === 2 && y[k] > avaliables[k].low){
+				else if(w[j] <= properWidths[j] - 1 && y[j] - w[j] - y[k] === 1 && y[k] - w[k] - y[m] === 2 && y[k] > avaliables[k].low){
 					w[j] += 1; y[k] -= 1;
 					if(spaceBelow(y, w, k, pixelBottomPixels - 1) < 1){ // reroll when a collision is made
 						w[j] -= 1;

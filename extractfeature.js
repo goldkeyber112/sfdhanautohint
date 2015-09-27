@@ -1,3 +1,5 @@
+toposort = require('toposort');
+
 function slopeOf(segs){
 	var sy = 0, sx = 0, n = 0;
 	for(var j = 0; j < segs.length; j++) for(var k = 0; k < segs[j].length; k++) {
@@ -25,6 +27,38 @@ function TransitionClosure(d){
 	return o;
 }
 exports.extractFeature = function(glyph, strategy) {
+	var STEM_SIDE_MIN_RISE     		= strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_RISE   		= strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
+	var STEM_SIDE_MIN_DESCENT  		= strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
+	var STEM_CENTER_MIN_DESCENT		= strategy.STEM_CENTER_MIN_DESCENT || STEM_SIDE_MIN_DESCENT;
+	function atRadicalTop(stem){
+		return !stem.hasSameRadicalStemAbove
+			&& !(stem.hasRadicalPointAbove && stem.radicalCenterRise > STEM_CENTER_MIN_RISE)
+			&& !(stem.hasRadicalLeftAdjacentPointAbove && stem.radicalLeftAdjacentRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasRadicalRightAdjacentPointAbove && stem.radicalRightAdjacentRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasRadicalLeftDistancedPointAbove && stem.radicalLeftDistancedRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasRadicalRightDistancedPointAbove && stem.radicalRightDistancedRise > STEM_SIDE_MIN_RISE)
+	}
+	function atGlyphTop(stem){
+		return atRadicalTop(stem) && !stem.hasGlyphStemAbove 
+			&& !(stem.hasGlyphPointAbove && stem.glyphCenterRise > STEM_CENTER_MIN_RISE)
+			&& !(stem.hasGlyphLeftAdjacentPointAbove && stem.glyphLeftAdjacentRise > STEM_SIDE_MIN_RISE)
+			&& !(stem.hasGlyphRightAdjacentPointAbove && stem.glyphRightAdjacentRise > STEM_SIDE_MIN_RISE)
+	}
+	function atRadicalBottom(stem){
+		return !stem.hasSameRadicalStemBelow
+			&& !(stem.hasRadicalPointBelow && stem.radicalCenterDescent > STEM_CENTER_MIN_DESCENT)
+			&& !(stem.hasRadicalLeftAdjacentPointBelow && stem.radicalLeftAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasRadicalRightAdjacentPointBelow && stem.radicalRightAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasRadicalLeftDistancedPointBelow && stem.radicalLeftDistancedDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasRadicalRightDistancedPointBelow && stem.radicalRightDistancedDescent > STEM_SIDE_MIN_DESCENT)
+	};
+	function atGlyphBottom(stem){
+		return atRadicalBottom(stem) && !stem.hasGlyphStemBelow 
+			&& !(stem.hasGlyphPointBelow && stem.glyphCenterDescent > STEM_CENTER_MIN_DESCENT)
+			&& !(stem.hasGlyphLeftAdjacentPointBelow && stem.glyphLeftAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+			&& !(stem.hasGlyphRightAdjacentPointBelow && stem.glyphRightAdjacentDescent > STEM_SIDE_MIN_DESCENT)
+	};
 	// Stem Keypoints
 	for(var js = 0; js < glyph.stems.length; js++) {
 		var s = glyph.stems[js];
@@ -173,6 +207,9 @@ exports.extractFeature = function(glyph, strategy) {
 		return (s.xmin < t.xmin && t.xmin < s.xmax && s.xmax < t.xmax && (s.xmax - t.xmin) / (s.xmax - s.xmin) <= 0.2)
 			|| (t.xmin < s.xmin && s.xmin < t.xmax && t.xmax < s.xmax && (t.xmax - s.xmin) / (s.xmax - s.xmin) <= 0.2)
 	};
+	function between(t, m, b){
+		return t.xmin < m.xmin && m.xmax < t.xmax && b.xmin < m.xmin && m.xmax < b.xmax
+	}
 	var directOverlaps = (function(){
 		var d = [];
 		for(var j = 0; j < glyph.stemOverlaps.length; j++){
@@ -191,7 +228,7 @@ exports.extractFeature = function(glyph, strategy) {
 		var blanks = [];
 		for(var j = 0; j < directOverlaps.length; j++) {
 			blanks[j] = [];
-			for(var k = 0; k < directOverlaps[j].length; k++) if(directOverlaps[j][k]) {
+			for(var k = 0; k < directOverlaps.length; k++) {
 				blanks[j][k] = glyph.stems[j].yori - glyph.stems[j].width - glyph.stems[k].yori;
 			}
 		};
@@ -199,12 +236,31 @@ exports.extractFeature = function(glyph, strategy) {
 	}();
 	var triplets = function(){
 		var triplets = [];
-		for(var j = 0; j < glyph.stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(blanks[j][k] >= 0 && blanks[k][w] >= 0) {
+		for(var j = 0; j < glyph.stems.length; j++) for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) if(directOverlaps[j][k] && blanks[j][k] >= 0 && blanks[k][w] >= 0) {
 			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
 		};
 		return triplets;
 	}();
-	
+	var flexes = function(){
+		var edges = [], t = [], b = [];
+		for(var j = glyph.stems.length - 1; j >= 0; j--) {
+			t[j] = glyph.stems.length - 1;
+			b[j] = 0;
+			for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) {
+				edges.push([0, k], [glyph.stems.length - 1, k])
+				if(blanks[j][k] >= 0 && blanks[k][w] >= 0 && between(glyph.stems[j], glyph.stems[k], glyph.stems[w])) {
+					edges.push([j, k], [w, k]);
+					t[k] = j; b[k] = w;
+				}
+			}
+		};
+		var order = toposort(edges);
+		var flexes = []
+		for(var j = 0; j < order.length; j++){
+			if(t[order[j]] >= 0 && b[order[j]] >= 0) flexes.push([t[order[j]], order[j], b[order[j]]]);
+		};
+		return flexes;
+	}();
 	return {
 		stats: glyph.stats,
 		stems: glyph.stems.map(function(s){
@@ -274,6 +330,7 @@ exports.extractFeature = function(glyph, strategy) {
 		directOverlaps: directOverlaps,
 		overlaps: overlaps,
 		triplets: triplets,
+		flexes: flexes,
 		collisionMatrices: glyph.collisionMatrices,
 		topBluePoints: topBluePoints.map(function(x){ return x.id }),
 		bottomBluePoints: bottomBluePoints.map(function(x){ return x.id }),
