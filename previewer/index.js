@@ -200,7 +200,7 @@ function render(){
 };
 
 var strategyControlGroups = [
-	['UPM', 'BLUEZONE_WIDTH', 'BLUEZONE_TOP_CENTER', 'BLUEZONE_TOP_LIMIT', 'BLUEZONE_BOTTOM_CENTER', 'BLUEZONE_BOTTOM_LIMIT'],
+	['UPM', 'BLUEZONE_WIDTH', 'BLUEZONE_TOP_CENTER', 'BLUEZONE_TOP_LIMIT', 'BLUEZONE_TOP_BAR', 'BLUEZONE_BOTTOM_CENTER', 'BLUEZONE_BOTTOM_LIMIT', 'BLUEZONE_BOTTOM_BAR'],
 	['MIN_STEM_WIDTH', 'MAX_STEM_WIDTH', 'MOST_COMMON_STEM_WIDTH', 'STEM_SIDE_MIN_RISE', 'STEM_SIDE_MIN_DESCENT', 'SLOPE_FUZZ', 'Y_FUZZ'],
 	['POPULATION_LIMIT', 'CHILDREN_LIMIT', 'EVOLUTION_STAGES', 'MUTANT_PROBABLITY', 'ELITE_COUNT'],
 	['COEFF_DISTORT', 'ABLATION_IN_RADICAL', 'ABLATION_RADICAL_EDGE', 'ABLATION_GLYPH_EDGE', 'ABLATION_GLYPH_HARD_EDGE', 'COEFF_PORPORTION_DISTORTION', 'COEFF_A_MULTIPLIER', 'COEFF_A_SAME_RADICAL', 'COEFF_A_SHAPE_LOST', 'COEFF_A_FEATURE_LOSS', 'COEFF_A_RADICAL_MERGE', 'COEFF_C_MULTIPLIER', 'COEFF_C_SAME_RADICAL', 'COEFF_S', 'COLLISION_MIN_OVERLAP_RATIO']
@@ -210,6 +210,7 @@ function createAdjusters(){
 	var container = document.getElementById('adjusters');
 	function update(){
 		setTimeout(render, 100);
+		console.log(strategy);
 		var buf = [];
 		for(var k in strategy) if((typeof strategy[k] === 'number' || typeof strategy[k] === 'string') && strategy[k] !== defaultStrategy[k]) buf.push("--" + k + "=" + strategy[k]);
 		resultPanel.innerHTML = buf.join(' ');

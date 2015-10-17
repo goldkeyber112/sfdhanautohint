@@ -142,14 +142,14 @@ exports.extractFeature = function(glyph, strategy) {
 	function interpolateByKeys(pts, keys, inSameRadical, priority){
 		for(var k = 0; k < pts.length; k++) if(!pts[k].touched && !pts[k].donttouch) {
 			for(var m = 1; m < keys.length; m++) {
-				if(strategy.DO_SHORT_ABSORPTION && inSameRadical && pts[k].yori - keys[m - 1].yori <= strategy.MAX_STEM_WIDTH
-					&& Math.abs(pts[k].xori - keys[m - 1].xori) <= strategy.MAX_STEM_WIDTH) {
-					shortAbsorptions.push([keys[m - 1].id, pts[k].id, priority]);
+				if(strategy.DO_SHORT_ABSORPTION && inSameRadical 
+					&& Math.hypot(pts[k].yori - keys[m - 1].yori, pts[k].xori - keys[m - 1].xori) <= strategy.MOST_COMMON_STEM_WIDTH * 1.2) {
+					shortAbsorptions.push([keys[m - 1].id, pts[k].id, priority + (pts[k].yExtrema ? 1 : 0)]);
 					pts[k].touched = true;
 					break;
 				}
 				if(keys[m].yori > pts[k].yori && keys[m - 1].yori <= pts[k].yori) {
-					interpolations.push([keys[m - 1].id, keys[m].id, pts[k].id, priority]);
+					interpolations.push([keys[m - 1].id, keys[m].id, pts[k].id, priority + (pts[k].yExtrema ? 1 : 0)]);
 					pts[k].touched = true;
 					break;
 				}
@@ -191,9 +191,9 @@ exports.extractFeature = function(glyph, strategy) {
 		};
 		for(var j = 0; j < contours.length; j++) {
 			if(records[j].ck.length > 1){
-				interpolateByKeys(records[j].topbot, records[j].ck, true, 2)
+				interpolateByKeys(records[j].topbot, records[j].ck, true, 3)
 			}
-			interpolateByKeys(records[j].topbot, glyphKeypoints, false, 2);
+			interpolateByKeys(records[j].topbot, glyphKeypoints, false, 3)
 		};
 		for(var j = 0; j < contours.length; j++) {
 			if(records[j].ckx.length > 1){
@@ -243,9 +243,11 @@ exports.extractFeature = function(glyph, strategy) {
 	}();
 	var flexes = function(){
 		var edges = [], t = [], b = [];
-		for(var j = glyph.stems.length - 1; j >= 0; j--) {
+		for(var j = 0; j < glyph.stems.length; j++){
 			t[j] = glyph.stems.length - 1;
 			b[j] = 0;
+		}
+		for(var j = glyph.stems.length - 1; j >= 0; j--) {
 			for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) {
 				edges.push([0, k], [glyph.stems.length - 1, k])
 				if(blanks[j][k] >= 0 && blanks[k][w] >= 0 && between(glyph.stems[j], glyph.stems[k], glyph.stems[w])) {
@@ -257,7 +259,9 @@ exports.extractFeature = function(glyph, strategy) {
 		var order = toposort(edges);
 		var flexes = []
 		for(var j = 0; j < order.length; j++){
-			if(t[order[j]] >= 0 && b[order[j]] >= 0) flexes.push([t[order[j]], order[j], b[order[j]]]);
+			if(t[order[j]] >= 0 && b[order[j]] >= 0 && t[order[j]] !== order[j] && b[order[j]] !== order[j]) {
+				flexes.push([t[order[j]], order[j], b[order[j]]]);
+			}
 		};
 		return flexes;
 	}();
