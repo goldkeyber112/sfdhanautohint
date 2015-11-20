@@ -5,9 +5,7 @@ var stream = require('stream');
 var devnull = require('dev-null');
 var colors = require('colors');
 var util = require('util');
-var JSONStream = require('JSONStream');
-var es = require('event-stream');
-var stripBom = require('strip-bom');
+var devnull = require('dev-null');
 
 var hint = require('../hinter').hint;
 var instruct = require('../instructor').instruct;
@@ -52,23 +50,29 @@ var cvt = require('../cvt').from(argv, strategy);
 var divide = argv.d || 1;
 var modulo = argv.m || 0;
 
-var j = 0;
-var n = 0;
+function pad(s, p, n){
+	s = '' + s;
+	while(s.length < n) s = p + s;
+	return s;
+}
+function progressbar(u, len){
+	var buf = '';
+	for(var j = 1; j <= len; j++){
+		buf += (j > u * len) ? ' ' : '#'
+	}
+	return buf;
+}
 
-outStream.write('[');
-var started = false;
 var finished = false;
-
+var pendings = [];
+var ans = [];
 function finish(){
 	if(finished) return;
 	finished = true;
-	outStream.write(']\n');
-}
-
-inStream.pipe(stripBom.stream()).pipe(JSONStream.parse('*')).pipe(es.mapSync(function(data){
-	if(j % divide === modulo) {
-		if(n % 100 === 0 && !argv.silent || argv.verbose) {
-			process.stderr.write(('HGFHINT: Progress: Hinting /' + data[0] + ' of ' + (argv._[0] || '(stdin)') + ' (#' + j + ')') + '\n')
+	for(var j = 0; j < pendings.length; j++) {
+		var data = pendings[j];
+		if(j % 100 === 0 && !argv.silent || argv.verbose) {
+			process.stderr.write('HGFHINT: Hinting [' + progressbar(j / pendings.length, 30) + '](#' + pad(j, ' ', 5) + '/' + pad(pendings.length, ' ', 5) + ')' + ' of ' + (argv._[0] || '(stdin)') + ' ' + pad(modulo, '0', 3) + "d" + pad(divide, '0', 3) + '\n')
 		}
 		var glyph = data[1];
 		var stemActions = [];
@@ -84,12 +88,17 @@ inStream.pipe(stripBom.stream()).pipe(JSONStream.parse('*')).pipe(es.mapSync(fun
 			}
 			stemActions[ppem] = actions;
 		}
-		j++;
+		ans.push([data[0], instruct(glyph, stemActions, strategy, cvt, argv.CVT_PADDING || 0, nMDRPnr > nMDRPr)]);
+	};
+	outStream.write(JSON.stringify(ans));
+}
 
-		n++;
-		outStream.write((started ? ',\n' : (started = true, '')) + JSON.stringify([data[0], instruct(glyph, stemActions, strategy, cvt, argv.CVT_PADDING || 0, nMDRPnr > nMDRPr)]));
-	} else {
-		j++;
-		return ''
+var j = 0;
+rl.on('line', function(line){
+	if(j % divide === modulo) {
+		var l = line.trim();
+		if(l) pendings.push(JSON.parse(l));
 	}
-})).on('end', finish).on('close', finish).on('error', finish);
+	j += 1;
+});
+rl.on('close', finish);

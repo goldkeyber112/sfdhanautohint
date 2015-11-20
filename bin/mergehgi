@@ -4,9 +4,6 @@ var path = require('path');
 var stream = require('stream');
 var readline = require('readline');
 var argv = require('yargs').argv;
-var glob = require("glob");
-var JSONStream = require('JSONStream');
-var es = require('event-stream');
 
 
 var outStream = argv.o ? fs.createWriteStream(argv.o, { encoding: 'utf-8' }) : process.stdout;

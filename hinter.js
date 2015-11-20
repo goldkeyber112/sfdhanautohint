@@ -151,10 +151,9 @@ function hint(glyph, ppem, strategy) {
 		+ Math.min(0, ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelBottom - BLUEZONE_BOTTOM_BAR : pixelBottom - BLUEZONE_BOTTOM_CENTER);
 	var cytx = pixelTop - (ppem <= PPEM_INCREASE_GLYPH_LIMIT ? 0 : roundDown(BLUEZONE_TOP_CENTER - BLUEZONE_TOP_BAR))
 		+ Math.max(0, ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelTop - BLUEZONE_TOP_BAR : pixelTop - BLUEZONE_TOP_CENTER);
+	
 	function cy(y, w0, w, x){
-		var p = aggerate(
-			(y - w0 - BLUEZONE_BOTTOM_BAR) / (BLUEZONE_TOP_BAR - BLUEZONE_BOTTOM_BAR - w0), 
-			xclamp(0.95, mix(1, 0.95, (ppem - 16) / (26 - 16)), 1));
+		var p = (y - w0 - BLUEZONE_BOTTOM_BAR) / (BLUEZONE_TOP_BAR - BLUEZONE_BOTTOM_BAR - w0);
 		if(x) {
 			return w + cybx + (cytx - cybx - w) * p;
 		} else {
@@ -174,9 +173,6 @@ function hint(glyph, ppem, strategy) {
 	}
 	
 	function flexCenter(avaliables) {
-		for(var j = 0; j < flexes.length; j++) {
-			flexMiddleStem(avaliables[flexes[j][0]], avaliables[flexes[j][1]], avaliables[flexes[j][2]]);
-		}
 		// fix top and bottom stems
 		for(var j = 0; j < stems.length; j++){
 			if(!stems[j].hasGlyphStemBelow) {
@@ -185,7 +181,10 @@ function hint(glyph, ppem, strategy) {
 			if(!stems[j].hasGlyphStemAbove) {
 				avaliables[j].low = Math.round(avaliables[j].center / uppx);
 			};
-			avaliables[j].proportion = (avaliables[j].center - avaliables[0].center) / (avaliables[avaliables.length - 1].center - avaliables[0].center) || 0
+		}
+		
+		for(var j = 0; j < flexes.length; j++) {
+			flexMiddleStem(avaliables[flexes[j][0]], avaliables[flexes[j][1]], avaliables[flexes[j][2]]);
 		}
 	};
 	
@@ -193,21 +192,17 @@ function hint(glyph, ppem, strategy) {
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
 			var w = calculateWidth(stems[j].width);
+			var lowlimit = atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + xclamp(uppx, stems[j].yori - w - BLUEZONE_BOTTOM_CENTER, WIDTH_GEAR_MIN * uppx);
+			var highlimit = ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelTop - (atGlyphTop(stems[j]) ? 0 : uppx):
+				pixelTop - xclamp(
+					atGlyphTop(stems[j]) ? 0 : uppx,
+					atGlyphTop(stems[j]) ? round(BLUEZONE_TOP_CENTER - BLUEZONE_TOP_BAR) + roundDown(BLUEZONE_TOP_BAR - stems[j].yori) : round(BLUEZONE_TOP_CENTER - stems[j].yori),
+					WIDTH_GEAR_MIN * uppx);
 			
-			var low = round(stems[j].yori) - uppx;
-			low = Math.max(low, atGlyphBottom(stems[j]) ? pixelBottom + WIDTH_GEAR_MIN * uppx : pixelBottom + WIDTH_GEAR_MIN * uppx + xclamp(uppx, stems[j].yori - w - BLUEZONE_BOTTOM_CENTER, WIDTH_GEAR_MIN * uppx));
-
-			var high = round(stems[j].yori) + uppx;
-			high = xclamp(low,
-				ppem <= PPEM_INCREASE_GLYPH_LIMIT ? pixelTop - (atGlyphTop(stems[j]) ? 0 : uppx):
-					pixelTop - xclamp(
-						atGlyphTop(stems[j]) ? 0 : uppx,
-						atGlyphTop(stems[j]) ? round(BLUEZONE_TOP_CENTER - BLUEZONE_TOP_BAR) + roundDown(BLUEZONE_TOP_BAR - stems[j].yori) : round(BLUEZONE_TOP_CENTER - stems[j].yori),
-						WIDTH_GEAR_MIN * uppx),
-				high);
-			
-			var center = xclamp(low, cy(stems[j].yori, stems[j].width, w, atGlyphTop(stems[j]) || atGlyphBottom(stems[j])), high);
-			var center0 = xclamp(low, cy(stems[j].yori, stems[j].width, stems[j].width, atGlyphTop(stems[j]) || atGlyphBottom(stems[j])), high);
+			var center0 = cy(stems[j].yori, stems[j].width, w, atGlyphTop(stems[j]) || atGlyphBottom(stems[j]))
+			var center = xclamp(lowlimit, center0, highlimit);
+			var low = xclamp(lowlimit, round(center) - uppx, highlimit);
+			var high = xclamp(lowlimit, round(center) + uppx, highlimit);
 			
 			var ablationCoeff = atGlyphTop(stems[j]) || atGlyphBottom(stems[j]) ? ABLATION_GLYPH_HARD_EDGE
 							  : !stems[j].hasGlyphStemAbove || !stems[j].hasGlyphStemBelow ? ABLATION_GLYPH_EDGE
@@ -216,14 +211,14 @@ function hint(glyph, ppem, strategy) {
 				low: Math.round(low / uppx),
 				high: Math.round(high / uppx),
 				properWidth: w,
-				y0: stems[j].yori,
-				w0: stems[j].width,
 				center: center,
-				center0: center0,
 				ablationCoeff: ablationCoeff / uppx * (1 + 0.5 * (stems[j].xmax - stems[j].xmin) / upm)
 			};
 		};
 		flexCenter(avaliables);
+		for(var j = 0; j < stems.length; j++){
+			avaliables[j].proportion = (avaliables[j].center - avaliables[0].center) / (avaliables[avaliables.length - 1].center - avaliables[0].center) || 0
+		};
 		return avaliables;
 	}(stems);
 
@@ -305,7 +300,7 @@ function hint(glyph, ppem, strategy) {
 				   d >= blueFuzz && spacejk < spacekw
 				|| d <= -blueFuzz && spacejk > spacekw
 				|| d < blueFuzz && d > -blueFuzz && (spacejk - spacekw > 1 || spacejk - spacekw < -1))) {
-				p += (A[j][k] + A[k][w]) * COEFF_DISTORT;
+				p += (C[j][k] + C[k][w]) * COEFF_DISTORT;
 			}
 		};
 		return p;
@@ -523,12 +518,12 @@ function hint(glyph, ppem, strategy) {
 
 		// Avoid thin strokes
 		for(var pass = 0; pass < 3; pass++) if(WIDTH_GEAR_PROPER >= 2 && WIDTH_GEAR_MIN >= 2) {
-			for(var psi = 0; psi < 2; psi++) for(var j = stems.length - 1; j >= 0; j--) if(([false, true][psi] || !stems[j].hasGlyphStemAbove) && w[j] < 2){
+			for(var psi = 0; psi < 2; psi++) for(var j = stems.length - 1; j >= 0; j--) if(([false, true][psi] || !stems[j].hasGlyphStemAbove) && w[j] < [properWidths[j], 2][psi]){
 				var able = true;
-				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - y[k] <= 2 && w[k] < (cover(stems[j], stems[k]) ? 2 : [2, 3][psi])) able = false;
+				for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - w[j] - y[k] <= 1 && w[k] < (cover(stems[j], stems[k]) ? 2 : [2, 3][psi])) able = false;
 				if(able){
 					w[j] += 1;
-					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - y[k] <= 2) {
+					for(var k = 0; k < j; k++) if(directOverlaps[j][k] && y[j] - w[j] - y[k] <= 0) {
 						y[k] -= 1;
 						w[k] -= 1;
 					}
