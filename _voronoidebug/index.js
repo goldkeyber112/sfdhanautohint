@@ -186,10 +186,22 @@ function construct_voronoi(glyph) {
 	}
 }
 
-
+function extractStems(diagram){
+	var edges = diagram.edges;
+	var candicates = []
+	for(var j = 0; j < edges.length; j++) if(edges[j].vertex0_index >= 0 && edges[j].vertex1_index >= 0) {
+		var v0 = diagram.vertexes[edges[j].vertex0_index], v1 = diagram.vertexes[edges[j].vertex1_index]
+		if(v0.inside && v1.inside && !v0.border && !v1.border) {
+			if(Math.abs(v1.y - v0.y) < 0.15 * Math.abs(v1.x - v0.x)) {
+				candicates.push(edges[j])
+			}
+		}
+	}
+	return candicates
+}
 
 function render() {
-	var INDEX = 6;
+	var INDEX = 0;
 	var ppem = 1350;
 	var hPreview = document.getElementById('preview').getContext('2d');
 	function txp(x){ return ((x + 50) / strategy.UPM * ppem) };
@@ -198,58 +210,46 @@ function render() {
 	// Voronoi diagram constructor
 	var diagram = construct_voronoi(glyphs[INDEX]);
 	var edges = diagram.edges;
-
-	for(var j = 0; j < edges.length; j++) if(edges[j].vertex0_index >= 0 && edges[j].vertex1_index >= 0) {
-		hPreview.lineWidth = 1;
-		var v0 = diagram.vertexes[edges[j].vertex0_index], v1 = diagram.vertexes[edges[j].vertex1_index]
-		if(v0.inside && v1.inside) {
-			if(v0.border || v1.border){
-				hPreview.strokeStyle = 'transparent';
-			} else {
-				hPreview.lineWidth = 3;
-				hPreview.strokeStyle = 'blue';
-			}
-		} else {
-			hPreview.strokeStyle = 'transparent';
-		}
+	
+	var sss = extractStems(diagram);
+	for(var j = 0; j < sss.length; j++) {
+		var v0 = diagram.vertexes[sss[j].vertex0_index], v1 = diagram.vertexes[sss[j].vertex1_index]
+ 		hPreview.lineWidth = 3;
+		hPreview.strokeStyle = 'blue';
 		hPreview.beginPath();
 		hPreview.moveTo(txp(v0.x), typ(v0.y))
 		hPreview.lineTo(txp(v1.x), typ(v1.y))
 		hPreview.stroke();
-
-		if(v0.inside && v1.inside && !(v0.border || v1.border)) {
-			// Inner edge
-			var cell = diagram.cells[edges[j].cell_index];
-			hPreview.lineWidth = 1;
-			var xm = (v0.x + v1.x) / 2;
-			var ym = (v0.y + v1.y) / 2;
-			var doit = false;
-			if(cell.source_category === 8 || cell.source_category === 9) {
-				var s = diagram.testSegments[cell.source_index];
-				var a = s[4] - s[2];
-				var b = s[1] - s[3];
-				var c = s[3] * s[2] - s[1] * s[4];
-				var xh = (b * b * xm - a * b * ym - a * c) / (a * a + b * b);
-				var yh = (-a * b * xm + a * a * ym - b * c) / (a * a + b * b);
-				doit = true;
-			} else if(cell.source_category === 1) {
-				var s = diagram.testSegments[cell.source_index];
-				var xh = s[1]
-				var yh = s[2]
-				doit = true;
-			} else if(cell.source_category === 2) {
-				var s = diagram.testSegments[cell.source_index];
-				var xh = s[3]
-				var yh = s[4]
-				doit = true;
-			}
-			if(doit){
-				hPreview.beginPath();
-				hPreview.moveTo(txp(xm), typ(ym));
-				hPreview.lineTo(txp(xh), typ(yh));
-				hPreview.stroke();				
-			}
-
+		
+		var cell = diagram.cells[sss[j].cell_index];
+		hPreview.lineWidth = 1;
+		var xm = (v0.x + v1.x) / 2;
+		var ym = (v0.y + v1.y) / 2;
+		var doit = false;
+		if(cell.source_category === 8 || cell.source_category === 9) {
+			var s = diagram.testSegments[cell.source_index];
+			var a = s[4] - s[2];
+			var b = s[1] - s[3];
+			var c = s[3] * s[2] - s[1] * s[4];
+			var xh = (b * b * xm - a * b * ym - a * c) / (a * a + b * b);
+			var yh = (-a * b * xm + a * a * ym - b * c) / (a * a + b * b);
+			doit = true;
+		} else if(cell.source_category === 1) {
+			var s = diagram.testSegments[cell.source_index];
+			var xh = s[1]
+			var yh = s[2]
+			doit = true;
+		} else if(cell.source_category === 2) {
+			var s = diagram.testSegments[cell.source_index];
+			var xh = s[3]
+			var yh = s[4]
+			doit = true;
+		}
+		if(doit){
+			hPreview.beginPath();
+			hPreview.moveTo(txp(xm), typ(ym));
+			hPreview.lineTo(txp(xh), typ(yh));
+			hPreview.stroke();
 		}
 	}
 
@@ -284,7 +284,7 @@ function render() {
 	hPreview.strokeStyle = 'black';
 	hPreview.stroke();
 
-	for(var j = 0; j < diagram.vertexes.length; j++) {
+	if(false) for(var j = 0; j < diagram.vertexes.length; j++) {
 		var v = diagram.vertexes[j];
 		hPreview.beginPath();
 		hPreview.fillStyle = v.border ? 'black' : v.inside ? 'blue' : 'transparent';

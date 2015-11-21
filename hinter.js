@@ -160,7 +160,6 @@ function hint(glyph, ppem, strategy) {
 			return w + cyb + (cyt - cyb - w) * p;
 		}
 	}
-	
 	function flexMiddleStem(t, m, b){
 		var spaceAboveOri = t.y0 - t.w0 / 2 - m.y0 + m.w0 / 2
 		var spaceBelowOri = m.y0 - m.w0 / 2 - b.y0 + b.w0 / 2
@@ -187,7 +186,6 @@ function hint(glyph, ppem, strategy) {
 			flexMiddleStem(avaliables[flexes[j][0]], avaliables[flexes[j][1]], avaliables[flexes[j][2]]);
 		}
 	};
-	
 	var avaliables = function(stems) {
 		var avaliables = []
 		for(var j = 0; j < stems.length; j++) {
