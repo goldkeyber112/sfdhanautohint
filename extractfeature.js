@@ -248,11 +248,11 @@ exports.extractFeature = function(glyph, strategy) {
 			b[j] = 0;
 		}
 		for(var j = glyph.stems.length - 1; j >= 0; j--) {
-			for(var k = 0; k < j; k++) for(var w = 0; w < k; w++) {
-				edges.push([0, k], [glyph.stems.length - 1, k])
-				if(blanks[j][k] >= 0 && blanks[k][w] >= 0 && between(glyph.stems[j], glyph.stems[k], glyph.stems[w])) {
-					edges.push([j, k], [w, k]);
-					t[k] = j; b[k] = w;
+			if(j > 0 && j < glyph.stems.length - 1) edges.push([0, j], [glyph.stems.length - 1, j]);
+			for(var k = 0; k < j; k++) for(var w = glyph.stems.length - 1; w > j; w--) {
+				if(blanks[j][k] >= 0 && blanks[w][j] >= 0 && between(glyph.stems[w], glyph.stems[j], glyph.stems[k])) {
+					edges.push([w, j], [k, j]);
+					t[j] = w; b[j] = k;
 				}
 			}
 		};
