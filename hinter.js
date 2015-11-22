@@ -167,11 +167,11 @@ function hint(glyph, ppem, strategy) {
 		}
 	}
 	function flexMiddleStem(t, m, b){
-		var spaceAboveOri = t.y0 - t.w0 - m.y0
-		var spaceBelowOri = m.y0 - m.w0 - b.y0
+		var spaceAboveOri = t.y0 - t.w0 / 2 - m.y0 + m.w0 / 2
+		var spaceBelowOri = m.y0 - m.w0 / 2 - b.y0 + b.w0 / 2
 		if(spaceAboveOri + spaceBelowOri > 0) {
-			var totalSpaceFlexed = t.center - t.properWidth - b.center - m.properWidth;
-			var y = m.properWidth + b.center + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri));
+			var totalSpaceFlexed = t.center - t.properWidth / 2 - b.center + b.properWidth / 2;
+			var y = m.properWidth / 2 + b.center - b.properWidth / 2 + totalSpaceFlexed * (spaceBelowOri / (spaceBelowOri + spaceAboveOri));
 			m.center = xclamp(m.low * uppx, y, m.high * uppx)
 		}
 	}

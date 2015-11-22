@@ -66,13 +66,17 @@ function progressbar(u, len){
 var finished = false;
 var pendings = [];
 var ans = [];
+var PROGRESS_LENGTH = 30;
 function finish(){
 	if(finished) return;
 	finished = true;
+	var currentProgress = progressbar(0, PROGRESS_LENGTH);
 	for(var j = 0; j < pendings.length; j++) {
 		var data = pendings[j];
-		if(j % 100 === 0 && !argv.silent || argv.verbose) {
-			process.stderr.write('HGFHINT: Hinting [' + progressbar(j / pendings.length, 30) + '](#' + pad(j, ' ', 5) + '/' + pad(pendings.length, ' ', 5) + ')' + ' of ' + (argv._[0] || '(stdin)') + ' ' + pad(modulo, '0', 3) + "d" + pad(divide, '0', 3) + '\n')
+		var pb = progressbar(j / pendings.length, PROGRESS_LENGTH);
+		if(!argv.silent && pb !== currentProgress) {
+			process.stderr.write('HGFHINT: Hinting [' +  pb + '](#' + pad(j, ' ', 5) + '/' + pad(pendings.length, ' ', 5) + ')' + ' of ' + (argv._[0] || '(stdin)') + ' ' + pad(modulo, '0', 3) + "d" + pad(divide, '0', 3) + '\n');
+			currentProgress = pb;
 		}
 		var glyph = data[1];
 		var stemActions = [];
