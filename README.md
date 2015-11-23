@@ -54,7 +54,7 @@ The strategy parameters determines how `sfdhanautohint` generate the instruction
 	* **STEM_SIDE_MIN_RISE** : The maximum height of decorative shapes placed aside a hotizontal stem's upper edge.
 	* **STEM_SIDE_MIN_DESCENT** : The maximum depth of decorative shapes placed aside a hotizontal stem's lower edge.
 
-* **Parameters for building composite font **
+* **Parameters for building composite font**
 	* **CVT_PADDING** : While `hans.sfd` contains Han characters only, to build a composite font with Latin letters or Kanas, the hinted Han subfont should respect the original hintings contained by the non-Han part. This parameter indicates the length of the `cvt` table in the non-Han subfont, to avoid `cvt` conflict between Han and non-Han parts. To build a composite font you may follow this process:
 	
 	```bash
