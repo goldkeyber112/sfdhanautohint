@@ -2,8 +2,6 @@
 var fs = require('fs');
 var readline = require('readline');
 var stream = require('stream');
-var devnull = require('dev-null');
-var colors = require('colors');
 var util = require('util');
 var devnull = require('dev-null');
 

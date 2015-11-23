@@ -6,7 +6,6 @@ var parseSFD = require('../sfdParser').parseSFD;
 var findStems = require('../findstem').findStems;
 var extractFeature = require('../extractfeature').extractFeature;
 var devnull = require('dev-null');
-var colors = require('colors');
 var util = require('util');
 
 var crypto = require('crypto');

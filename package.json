@@ -8,10 +8,11 @@
     "combined-stream": "",
     "glob": "",
     "dev-null": "",
-    "colors": "",
     "event-stream": "",
     "strip-bom": "",
-    "node-static": ""
+    "node-static": "",
+    "JSONStream": "*",
+    "toposort": "*"
   },
   "bin": {
   	"hgfhint": "./bin/hgfhint",

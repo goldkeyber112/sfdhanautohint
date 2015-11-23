@@ -4,6 +4,7 @@ var readline = require('readline');
 var stream = require('stream');
 var devnull = require('dev-null');
 var yargs = require('yargs');
+var nodeStatic = require("node-static");
 var argv = yargs.argv;
 
 var strategy = require('../strategy').from(argv);
@@ -41,7 +42,6 @@ rl.on('line', function(line) {
 	};
 });
 
-var nodeStatic = require("node-static");
 var fileServer = new nodeStatic.Server(require('path').resolve(__dirname, "../previewer"));
 
 rl.on('close', function() {
