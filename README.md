@@ -1,5 +1,5 @@
-sfdhanautohint
-=========================
+sfdhanautohint [![npm version](https://badge.fury.io/js/sfdhanautohint.svg)](https://badge.fury.io/js/sfdhanautohint)
+==============
 
 An optimized hinting genreator for Han characters powered by Node.js.
 
