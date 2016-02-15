@@ -83,7 +83,7 @@ And there are some parameters for `hgfhint` only:
   mergehgi -o large.hgi part0.hgi part1.hgi ... part9.hgi
   ```
   
-  With the help with GNU parallelism tools or `make`, it will provide a significant performance boost.
+  With the help with [GNU Parallel](https://gnu.org/s/parallel/) or `make`, it will provide a significant performance boost.
 
 You can adjust these parameters using the `paramadj`:
 
