@@ -68,7 +68,7 @@ The strategy parameters determines how `sfdhanautohint` generate the instruction
 
 And there are some parameters for `hgfhint` only:
 
-* **`-d didisor` and `-m modulo`**: Since `hgfhint` takes a lot of time, so we have a few extra parameters to help you out:
+* **`-d divisor` and `-m modulo`**: Since `hgfhint` takes a lot of time, so we have a few extra parameters to help you out:
   
   * `-d` - blocks of work to divide into
   * `-m` - which block of work to process
