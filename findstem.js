@@ -335,6 +335,10 @@ function findStems(glyph, strategy) {
 						stem.hasRadicalPointBelow = true;
 						stem.radicalCenterDescent = Math.max(stem.radicalCenterDescent || 0, stem.yori - stem.width - point.yori);
 					}
+					if(point.xStrongExtrema) {
+						stem.hasGlyphFoldBelow = true;
+						if(sameRadical) { stem.hasRadicalFoldBelow = true }
+					}
 				}
 				if(point.yori < stem.yori - stem.width && point.xori >= xmax - blueFuzz && point.xori <= xmax + blueFuzz) {
 					stem.hasGlyphRightAdjacentPointBelow = true;
