@@ -197,7 +197,7 @@ function hint(glyph, ppem, strategy) {
 			var lowlimit = atGlyphBottom(stems[j])
 				? pixelBottom + WIDTH_GEAR_MIN * uppx
 				: pixelBottom + WIDTH_GEAR_MIN * uppx + xclamp(uppx, stems[j].yori - w - BLUEZONE_BOTTOM_CENTER, WIDTH_GEAR_MIN * uppx);
-			if (stems[j].hasGlyphFoldBelow) {
+			if (stems[j].hasGlyphFoldBelow && !stems[j].hasGlyphStemBelow) {
 				lowlimit = Math.max(pixelBottom + (WIDTH_GEAR_MIN * 2 + 1) * uppx, lowlimit)
 			}
 			var highlimit = ppem <= PPEM_INCREASE_GLYPH_LIMIT
@@ -488,10 +488,10 @@ function hint(glyph, ppem, strategy) {
 			var wr = properWidths[j];
 			var wx = Math.min(wr, w[j] + sb - 1);
 			if (wx <= 1) return;
-			if (sb + w[j] >= wr + 1 && y[j] - wr >= pixelBottomPixels + 1 || atGlyphBottom(stems[j]) && y[j] - wr >= pixelBottomPixels) {
+			if (sb + w[j] >= wr + 1 && y[j] - wr >= pixelBottomPixels + (stems[j].hasGlyphFoldBelow ? 2 : 1) || atGlyphBottom(stems[j]) && y[j] - wr >= pixelBottomPixels) {
 				w[j] = wr;
 				allocated[j] = true;
-			} else if (y[j] - wx >= pixelBottomPixels + 1 || atGlyphBottom(stems[j]) && y[j] - wx >= pixelBottomPixels) {
+			} else if (y[j] - wx >= pixelBottomPixels + (stems[j].hasGlyphFoldBelow ? 2 : 1) || atGlyphBottom(stems[j]) && y[j] - wx >= pixelBottomPixels) {
 				w[j] = wx;
 				if (w >= wr) allocated[j] = true;
 			}
