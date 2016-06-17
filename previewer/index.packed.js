@@ -1633,7 +1633,7 @@ function hint(glyph, ppem, strategy) {
 	var DONT_ADJUST_STEM_WIDTH = strategy.DONT_ADJUST_STEM_WIDTH || false;
 
 
-	var shouldAddGlyphHeight = strategy.shouldAddGlyphHeight || function(stem, ppem, pixelTop, pixelBottom) {
+	var shouldAddGlyphHeight = strategy.shouldAddGlyphHeight || function (stem, ppem, pixelTop, pixelBottom) {
 		return stem.yori - stem.ytouch >= 0.25 * uppx
 	}
 
@@ -1746,7 +1746,7 @@ function hint(glyph, ppem, strategy) {
 			flexMiddleStem(avaliables[flexes[j][0]], avaliables[flexes[j][1]], avaliables[flexes[j][2]]);
 		}
 	};
-	var avaliables = function(stems) {
+	var avaliables = function (stems) {
 		var avaliables = []
 		for (var j = 0; j < stems.length; j++) {
 			var w = calculateWidth(stems[j].width);
@@ -1894,60 +1894,40 @@ function hint(glyph, ppem, strategy) {
 		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
 		this.fitness = 1 / (1 + Math.max(0, this.collidePotential * 8 + this.ablationPotential / 16))
 	};
-	function crossover(father, mother) {
-		var jm = father.length - 1;
-		while (father[jm] === mother[jm] && jm >= 0) jm -= 1;
-		if (jm < 0) return new Organism(mutant(father.slice(0)));
-		var rj = Math.floor(Math.random() * (jm + 1));
-		var y1 = father.slice(0, rj).concat(mother.slice(rj));
-		if (Math.random() < MUTANT_PROBABLITY) mutant(y1);
-		return new Organism(y1);
-	};
-	function mutantAt(y1, rj, pos) {
-		y1[rj] = pos;
-	};
-	function mutant(y1) {
-		var rj = Math.floor(Math.random() * y1.length);
-		mutantAt(y1, rj, avaliables[rj].low + Math.floor(Math.random() * (avaliables[rj].high - avaliables[rj].low + 0.999)));
-		return y1;
-	};
-
-	function selectPopulation(population) {
-		var res = [];
-		var n = 0;
-		while (n < POPULATION_LIMIT) {
-			var maxFitness = 0;
-			for (var j = 0; j < population.length; j++) if (population[j] && population[j].fitness > maxFitness) {
-				maxFitness = population[j].fitness
-			};
-			if (maxFitness <= 0) break;
-			for (var j = 0; j < population.length; j++) if (population[j] && Math.random() * maxFitness <= population[j].fitness) {
-				n += 1;
-				res.push(population[j]);
-				population[j] = null;
+	var beta = 1;
+	var CR = 0.5;
+	function crossover(p, q, r) {
+		var n = p.gene.length;
+		var newgene = new Array(n);
+		var R = Math.random() * n | 0;
+		for (var j = 0; j < p.gene.length; j++) {
+			if ((Math.random() * n | 0) === R || Math.random() < CR) {
+				newgene[j] = xclamp(avaliables[j].low, p.gene[j] + beta * (q.gene[j] - r.gene[j]), avaliables[j].high)
+			} else {
+				newgene[j] = p.gene[j];
 			}
-		};
-		return res;
-	}
-
-	function evolve(population) {
+		}
+		return new Organism(newgene);
+	};
+	// Use a swapchain to avoid re-allochain
+	function evolve(p, q, odd) {
+		var population = odd ? p : q;
+		var background = odd ? q : p;
 		// Crossover
-		var children = []
-		for (var c = 0; c < POPULATION_LIMIT - population.length + CHILDREN_LIMIT; c++) {
-			var father = population[0 | Math.random() * population.length].gene;
-			var mother = population[0 | Math.random() * population.length].gene;
-			var child = crossover(father, mother)
-			if (child) children.push(child)
+		for (var c = 0; c < population.length; c++) {
+			var original = population[c];
+			var m1 = population[0 | Math.random() * population.length];
+			var m2 = population[0 | Math.random() * population.length];
+			var candidate = crossover(original, m1, m2);
+			background[c] = candidate.fitness > original.fitness ? candidate : original;
 		};
-		population = population.concat(children);
-		if (population.length <= POPULATION_LIMIT) return population;
-		return selectPopulation(population);
+		return population;
 	};
 	function uncollide(stems) {
 		if (!stems.length) return;
 
 		var n = stems.length;
-		var y0 = stems.map(function(s, j) { return xclamp(avaliables[j].low, Math.round(stems[j].ytouch / uppx), avaliables[j].high) });
+		var y0 = stems.map(function (s, j) { return xclamp(avaliables[j].low, Math.round(stems[j].ytouch / uppx), avaliables[j].high) });
 
 		var population = [new Organism(y0)];
 		// Generate initial population
@@ -1958,12 +1938,14 @@ function hint(glyph, ppem, strategy) {
 				population.push(new Organism(y1));
 			};
 		};
-		population.push(new Organism(y0.map(function(y, j) { return xclamp(avaliables[j].low, y - 1, avaliables[j].high) })));
-		population.push(new Organism(y0.map(function(y, j) { return xclamp(avaliables[j].low, y + 1, avaliables[j].high) })));
+		population.push(new Organism(y0.map(function (y, j) { return xclamp(avaliables[j].low, y - 1, avaliables[j].high) })));
+		population.push(new Organism(y0.map(function (y, j) { return xclamp(avaliables[j].low, y + 1, avaliables[j].high) })));
 
 		var elites = [new Organism(y0)];
+		// Build a swapchain
+		var p = population, q = new Array(population.length);
 		for (var s = 0; s < EVOLUTION_STAGES; s++) {
-			population = evolve(population);
+			population = evolve(p, q, !s%2);
 			var elite = population[0];
 			for (var j = 0; j < population.length; j++) if (population[j].fitness > elite.fitness) elite = population[j];
 			elites.push(elite);
@@ -1983,7 +1965,7 @@ function hint(glyph, ppem, strategy) {
 
 	// Pass 3 : Rebalance
 	function rebalance(stems) {
-		var m = stems.map(function(s, j) { return [s.xmax - s.xmin, j] }).sort(function(a, b) { return b[0] - a[0] });
+		var m = stems.map(function (s, j) { return [s.xmax - s.xmin, j] }).sort(function (a, b) { return b[0] - a[0] });
 		for (var pass = 0; pass < REBALANCE_PASSES; pass++) for (var jm = 0; jm < m.length; jm++) {
 			var j = m[jm][1];
 			if (!atGlyphTop(stems[j]) && !atGlyphBottom(stems[j])) {
@@ -2170,7 +2152,7 @@ function hint(glyph, ppem, strategy) {
 		stems[j].ytouch = stems[j].yori;
 		stems[j].touchwidth = uppx;
 	};
-	(function() {
+	(function () {
 		var y0 = [];
 		for (var j = 0; j < stems.length; j++) {
 			y0[j] = Math.round(avaliables[j].center / uppx);
