@@ -332,7 +332,7 @@ function hint(glyph, ppem, strategy) {
 		return p;
 	};
 
-	function Organism(y) {
+	function Individual(y) {
 		this.gene = y;
 		this.collidePotential = collidePotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
 		this.ablationPotential = ablationPotential(y, glyph.collisionMatrices.alignment, glyph.collisionMatrices.collision, glyph.collisionMatrices.swap, avaliables);
@@ -351,7 +351,7 @@ function hint(glyph, ppem, strategy) {
 				newgene[j] = p.gene[j];
 			}
 		}
-		return new Organism(newgene);
+		return new Individual(newgene);
 	};
 	// Use a swapchain to avoid re-allochain
 	function evolve(p, q, odd) {
@@ -373,19 +373,28 @@ function hint(glyph, ppem, strategy) {
 		var n = stems.length;
 		var y0 = stems.map(function (s, j) { return xclamp(avaliables[j].low, Math.round(stems[j].ytouch / uppx), avaliables[j].high) });
 
-		var population = [new Organism(y0)];
+		var population = [new Individual(y0)];
 		// Generate initial population
 		for (var j = 0; j < n; j++) {
 			for (var k = avaliables[j].low; k <= avaliables[j].high; k++) if (k !== y0[j]) {
 				var y1 = y0.slice(0);
 				y1[j] = k;
-				population.push(new Organism(y1));
+				population.push(new Individual(y1));
 			};
 		};
-		population.push(new Organism(y0.map(function (y, j) { return xclamp(avaliables[j].low, y - 1, avaliables[j].high) })));
-		population.push(new Organism(y0.map(function (y, j) { return xclamp(avaliables[j].low, y + 1, avaliables[j].high) })));
+		population.push(new Individual(y0.map(function (y, j) { return xclamp(avaliables[j].low, y - 1, avaliables[j].high) })));
+		population.push(new Individual(y0.map(function (y, j) { return xclamp(avaliables[j].low, y + 1, avaliables[j].high) })));
+		
+		for(var c = population.length; c < POPULATION_LIMIT; c++){
+			// fill population with random individuals
+			var ry = new Array(n);
+			for (var j = 0; j < n; j++) {
+				ry[j] = xclamp(avaliables[j].low, Math.floor(avaliables[j].low + Math.random() * (avaliables[j].high - avaliables[j].low + 1)), avaliables[j].high);
+			}
+			population.push(new Individual(ry));
+		}
 
-		var elites = [new Organism(y0)];
+		var elites = [new Individual(y0)];
 		// Build a swapchain
 		var p = population, q = new Array(population.length);
 		for (var s = 0; s < EVOLUTION_STAGES; s++) {
@@ -601,7 +610,7 @@ function hint(glyph, ppem, strategy) {
 		for (var j = 0; j < stems.length; j++) {
 			y0[j] = Math.round(avaliables[j].center / uppx);
 		}
-		var og = new Organism(y0);
+		var og = new Individual(y0);
 		if (og.collidePotential <= 0) {
 			for (var j = 0; j < stems.length; j++) {
 				stems[j].ytouch = og.gene[j] * uppx;
