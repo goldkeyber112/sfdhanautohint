@@ -232,7 +232,6 @@ exports.extractFeature = function (glyph, strategy) {
 				d[j][k] = edgetouch(glyph.stems[j], glyph.stems[k]);
 			}
 		};
-		console.log(d);
 		return d;
 	})();
 	var overlaps = TransitionClosure(directOverlaps);
