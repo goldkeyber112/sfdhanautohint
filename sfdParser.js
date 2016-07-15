@@ -46,7 +46,7 @@ function parseSFD(input) {
 		nPoints = Math.max(nPoints, currentid, sequentid)
 	}
 	if (currentContour) contours.push(currentContour);
-	contours.forEach(function(c) { c.stat() });
+	contours.forEach(function (c) { c.stat() });
 	delete indexedPoints[-1];
 	var glyph = new Glyph(contours);
 	glyph.nPoints = nPoints;

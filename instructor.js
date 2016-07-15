@@ -205,9 +205,9 @@ function instruct(glyph, actions, strategy, cvt, padding, useMDRPnr) {
 	var isalInvocations = [];
 	// In-stem alignments
 	for (var j = 0; j < glyph.stems.length; j++) {
-		[[glyph.stems[j].posKey.id, glyph.stems[j].posAlign], [glyph.stems[j].advKey.id, glyph.stems[j].advAlign]].forEach(function(x) {
+		[[glyph.stems[j].posKey.id, glyph.stems[j].posAlign], [glyph.stems[j].advKey.id, glyph.stems[j].advAlign]].forEach(function (x) {
 			if (x[1].length) {
-				isalInvocations.push([x[1].concat([x[0]]), ['SRP0'].concat(x[1].map(function(x) { return 'MDRP[0]' }))]);
+				isalInvocations.push([x[1].concat([x[0]]), ['SRP0'].concat(x[1].map(function (x) { return 'MDRP[0]' }))]);
 			}
 		});
 	};

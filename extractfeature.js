@@ -26,7 +26,7 @@ function TransitionClosure(d) {
 			for (var k = 0; k < o.length; k++) o[j][k] = o[j][k] || o[j][m] && o[m][k];
 	return o;
 }
-exports.extractFeature = function(glyph, strategy) {
+exports.extractFeature = function (glyph, strategy) {
 	var STEM_SIDE_MIN_RISE = strategy.STEM_SIDE_MIN_RISE || strategy.MIN_STEM_WIDTH;
 	var STEM_CENTER_MIN_RISE = strategy.STEM_CENTER_MIN_RISE || STEM_SIDE_MIN_RISE;
 	var STEM_SIDE_MIN_DESCENT = strategy.STEM_SIDE_MIN_DESCENT || strategy.MIN_STEM_WIDTH;
@@ -168,8 +168,8 @@ exports.extractFeature = function(glyph, strategy) {
 
 		for (var j = 0; j < contours.length; j++) {
 			var contourpoints = contours[j].points
-			var contourKeypoints = contourpoints.filter(function(p) { return p.touched }).sort(BY_YORI);
-			var contourExtrema = contourpoints.filter(function(p) { return p.xExtrema || p.yExtrema }).sort(BY_YORI);
+			var contourKeypoints = contourpoints.filter(function (p) { return p.touched }).sort(BY_YORI);
+			var contourExtrema = contourpoints.filter(function (p) { return p.xExtrema || p.yExtrema }).sort(BY_YORI);
 
 			if (contourExtrema.length > 1) {
 				var topbot = [contourExtrema[0], contourExtrema[contourExtrema.length - 1]];
@@ -204,13 +204,14 @@ exports.extractFeature = function(glyph, strategy) {
 	};
 	findInterpolates(glyph.contours);
 	function edgetouch(s, t) {
+		if (s.xmax - s.xmin < t.xmax - t.xmin) return edgetouch(t, s);
 		return (s.xmin < t.xmin && t.xmin < s.xmax && s.xmax < t.xmax && (s.xmax - t.xmin) / (s.xmax - s.xmin) <= 0.2)
 			|| (t.xmin < s.xmin && s.xmin < t.xmax && t.xmax < s.xmax && (t.xmax - s.xmin) / (s.xmax - s.xmin) <= 0.2)
 	};
 	function between(t, m, b) {
 		return t.xmin < m.xmin && m.xmax < t.xmax && b.xmin < m.xmin && m.xmax < b.xmax
 	}
-	var directOverlaps = (function() {
+	var directOverlaps = (function () {
 		var d = [];
 		for (var j = 0; j < glyph.stemOverlaps.length; j++) {
 			d[j] = [];
@@ -223,8 +224,19 @@ exports.extractFeature = function(glyph, strategy) {
 		};
 		return d;
 	})();
+	var edgeTouches = (function () {
+		var d = [];
+		for (var j = 0; j < glyph.stemOverlaps.length; j++) {
+			d[j] = [];
+			for (var k = 0; k < j; k++) {
+				d[j][k] = edgetouch(glyph.stems[j], glyph.stems[k]);
+			}
+		};
+		console.log(d);
+		return d;
+	})();
 	var overlaps = TransitionClosure(directOverlaps);
-	var blanks = function() {
+	var blanks = function () {
 		var blanks = [];
 		for (var j = 0; j < directOverlaps.length; j++) {
 			blanks[j] = [];
@@ -234,14 +246,14 @@ exports.extractFeature = function(glyph, strategy) {
 		};
 		return blanks;
 	} ();
-	var triplets = function() {
+	var triplets = function () {
 		var triplets = [];
 		for (var j = 0; j < glyph.stems.length; j++) for (var k = 0; k < j; k++) for (var w = 0; w < k; w++) if (directOverlaps[j][k] && blanks[j][k] >= 0 && blanks[k][w] >= 0) {
 			triplets.push([j, k, w, blanks[j][k] - blanks[k][w]]);
 		};
 		return triplets;
 	} ();
-	var flexes = function() {
+	var flexes = function () {
 		var edges = [], t = [], b = [];
 		for (var j = 0; j < glyph.stems.length; j++) {
 			t[j] = glyph.stems.length - 1;
@@ -267,7 +279,7 @@ exports.extractFeature = function(glyph, strategy) {
 	} ();
 	return {
 		stats: glyph.stats,
-		stems: glyph.stems.map(function(s) {
+		stems: glyph.stems.map(function (s) {
 			return {
 				xmin: s.xmin,
 				xmax: s.xmax,
@@ -328,19 +340,20 @@ exports.extractFeature = function(glyph, strategy) {
 
 				posKey: { id: s.posKey.id, yori: s.posKey.yori },
 				advKey: { id: s.advKey.id, yori: s.advKey.yori },
-				posAlign: s.posAlign.map(function(x) { return x.id }),
-				advAlign: s.advAlign.map(function(x) { return x.id }),
+				posAlign: s.posAlign.map(function (x) { return x.id }),
+				advAlign: s.advAlign.map(function (x) { return x.id }),
 				posKeyAtTop: s.posKeyAtTop
 			}
 		}),
 		stemOverlaps: glyph.stemOverlaps,
 		directOverlaps: directOverlaps,
+		edgeTouches: edgeTouches,
 		overlaps: overlaps,
 		triplets: triplets,
 		flexes: flexes,
 		collisionMatrices: glyph.collisionMatrices,
-		topBluePoints: topBluePoints.map(function(x) { return x.id }),
-		bottomBluePoints: bottomBluePoints.map(function(x) { return x.id }),
+		topBluePoints: topBluePoints.map(function (x) { return x.id }),
+		bottomBluePoints: bottomBluePoints.map(function (x) { return x.id }),
 		interpolations: interpolations,
 		shortAbsorptions: shortAbsorptions
 	}

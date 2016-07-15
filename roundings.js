@@ -7,7 +7,7 @@ function rtg(x, upm, ppem) {
 }
 function Rtg(upm, ppem) {
 	var uppx = upm / ppem;
-	return function(x) {
+	return function (x) {
 		if (x >= 0) return Math.round(toF26D6(x / uppx)) * uppx
 		else return -Math.round(toF26D6(-x / uppx)) * uppx
 	}
@@ -18,7 +18,7 @@ function rutg(x, upm, ppem) {
 }
 function Rutg(upm, ppem) {
 	var uppx = upm / ppem;
-	return function(x) {
+	return function (x) {
 		if (x >= 0) return Math.ceil(toF26D6(x / uppx)) * uppx
 		else return -Math.ceil(toF26D6(-x / uppx)) * uppx
 	}
@@ -29,7 +29,7 @@ function rdtg(x, upm, ppem) {
 }
 function Rdtg(upm, ppem) {
 	var uppx = upm / ppem;
-	return function(x) {
+	return function (x) {
 		if (x >= 0) return Math.floor(toF26D6(x / uppx)) * uppx
 		else return -Math.floor(toF26D6(-x / uppx)) * uppx
 	}

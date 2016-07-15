@@ -196,9 +196,9 @@ function hint(glyph, ppem, strategy) {
 			var w = calculateWidth(stems[j].width);
 			var lowlimit = atGlyphBottom(stems[j])
 				? pixelBottom + WIDTH_GEAR_MIN * uppx
-				: pixelBottom + WIDTH_GEAR_MIN * uppx + xclamp(uppx, stems[j].yori - w - BLUEZONE_BOTTOM_CENTER, WIDTH_GEAR_MIN * uppx);
+				: pixelBottom + WIDTH_GEAR_MIN * uppx + uppx;
 			if (stems[j].hasGlyphFoldBelow && !stems[j].hasGlyphStemBelow) {
-				lowlimit = Math.max(pixelBottom + (WIDTH_GEAR_MIN * 2 + 1) * uppx, lowlimit)
+				lowlimit = Math.max(pixelBottom + (WIDTH_GEAR_MIN + 2) * uppx, lowlimit)
 			}
 			var highlimit = ppem <= PPEM_INCREASE_GLYPH_LIMIT
 				? pixelTop - (atGlyphTop(stems[j]) ? 0 : uppx)
@@ -384,8 +384,8 @@ function hint(glyph, ppem, strategy) {
 		};
 		population.push(new Individual(y0.map(function (y, j) { return xclamp(avaliables[j].low, y - 1, avaliables[j].high) })));
 		population.push(new Individual(y0.map(function (y, j) { return xclamp(avaliables[j].low, y + 1, avaliables[j].high) })));
-		
-		for(var c = population.length; c < POPULATION_LIMIT; c++){
+
+		for (var c = population.length; c < POPULATION_LIMIT; c++) {
 			// fill population with random individuals
 			var ry = new Array(n);
 			for (var j = 0; j < n; j++) {
@@ -398,7 +398,7 @@ function hint(glyph, ppem, strategy) {
 		// Build a swapchain
 		var p = population, q = new Array(population.length);
 		for (var s = 0; s < EVOLUTION_STAGES; s++) {
-			population = evolve(p, q, !s%2);
+			population = evolve(p, q, !s % 2);
 			var elite = population[0];
 			for (var j = 0; j < population.length; j++) if (population[j].fitness > elite.fitness) elite = population[j];
 			elites.push(elite);
